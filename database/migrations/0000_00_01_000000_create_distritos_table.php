@@ -9,10 +9,12 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up() {
+    public function up(): void
+    {
         Schema::create('distritos', function (Blueprint $table) {
             $table->id();
-            $table->string('nombre');
+            $table->integer('numero'); // Asegurate de que esta línea esté tal cual
+            $table->integer('zona');   // Y esta también
             $table->timestamps();
         });
     }

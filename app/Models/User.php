@@ -2,48 +2,59 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Database\Factories\UserFactory;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens; // <--- IMPORTANTE: Importar Sanctum
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    // Agregamos HasApiTokens para que Laravel pueda generar los tokens de sesión
+    use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
     protected $fillable = [
-        'name',
-        'email',
-        'password',
+        'name', 
+        'email', 
+        'password', 
+        'grupo_id', 
+        'rama_id', 
+        'activo',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
     /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
+     * El "Escudo" del SuperAdmin
      */
-    protected function casts(): array
+    protected static function booted()
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
+        static::deleting(function ($user) {
+            // Si intentan borrar al ID 1, lanzamos un error
+            if ($user->id === 1) {
+                throw new \Exception("Acción denegada: El SuperAdministrador no puede ser eliminado.");
+            }
+        });
+    }
+    
+    // Relación con Roles
+    public function roles()
+    {
+        return $this->belongsToMany(Role::class, 'user_roles');
+    }
+
+    // Helper útil para tus Middlewares de "Educador" vs "Director"
+    public function hasRole($roleSlug)
+    {
+        return $this->roles()->where('slug', $roleSlug)->exists();
+    }
+
+    // Relación con el Grupo (Pompeya, etc.)
+    public function grupo()
+    {
+        return $this->belongsTo(Grupo::class);
     }
 }

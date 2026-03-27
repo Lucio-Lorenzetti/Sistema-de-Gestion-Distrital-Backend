@@ -9,13 +9,13 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up() {
-        Schema::create('program_versions', function (Blueprint $table) {
+    public function up(): void
+    {
+        Schema::create('grupos', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('program_id')->constrained()->onDelete('cascade');
-            $table->integer('version_nro');
-            $table->string('url_archivo');
-            $table->text('notas_cambio')->nullable();
+            $table->string('numero', 5); // Guardamos el 034, 999, etc.
+            $table->string('nombre');
+            $table->foreignId('distrito_id')->constrained('distritos')->onDelete('cascade');
             $table->timestamps();
         });
     }
@@ -25,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('program_versions');
+        Schema::dropIfExists('grupos');
     }
 };

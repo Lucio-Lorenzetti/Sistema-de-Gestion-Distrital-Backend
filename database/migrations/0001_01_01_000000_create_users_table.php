@@ -11,28 +11,31 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Tabla de Usuarios
         Schema::create('users', function (Blueprint $table) {
-            $table->id();
+            $table->id(); 
             $table->string('name');
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             
-            // Campos nuevos para la lógica del Distrito (agregados una sola vez)
             $table->foreignId('grupo_id')->nullable()->constrained('grupos');
             $table->foreignId('rama_id')->nullable()->constrained('ramas');
             $table->boolean('activo')->default(true);
 
-            $table->rememberToken(); // <--- Solo uno de estos
-            $table->timestamps();    // <--- Solo uno de estos
-        });
+            $table->rememberToken();
+            $table->softDeletes(); 
+            $table->timestamps();
+        }); // Aquí terminaba antes, ahora sigue...
 
+        // Tabla de Reseteo de Password
         Schema::create('password_reset_tokens', function (Blueprint $table) {
             $table->string('email')->primary();
             $table->string('token');
             $table->timestamp('created_at')->nullable();
         });
 
+        // Tabla de Sesiones
         Schema::create('sessions', function (Blueprint $table) {
             $table->string('id')->primary();
             $table->foreignId('user_id')->nullable()->index();
@@ -41,7 +44,7 @@ return new class extends Migration
             $table->longText('payload');
             $table->integer('last_activity')->index();
         });
-    }
+    } // <--- Esta llave cierra RECIÉN ACÁ la función up()
 
     /**
      * Reverse the migrations.
