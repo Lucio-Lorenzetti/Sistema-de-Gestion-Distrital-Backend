@@ -47,9 +47,11 @@ class User extends Authenticatable
     }
 
     // Helper útil para tus Middlewares de "Educador" vs "Director"
-    public function hasRole($roleSlug)
+    public function hasRole($roleNombre)
     {
-        return $this->roles()->where('slug', $roleSlug)->exists();
+        return $this->roles()
+                ->whereRaw('LOWER(nombre) = ?', [strtolower($nombreDelRol)])
+                ->exists();
     }
 
     // Relación con el Grupo (Pompeya, etc.)
