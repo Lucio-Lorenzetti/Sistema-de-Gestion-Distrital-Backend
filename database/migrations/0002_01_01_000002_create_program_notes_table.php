@@ -13,6 +13,9 @@ return new class extends Migration
     {
         Schema::create('program_notes', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('program_id')->constrained()->onDelete('cascade'); // A qué programa pertenece
+            $table->foreignId('user_id')->constrained(); // Quién dejó la nota (Director/Auxiliar)
+            $table->text('contenido'); // El feedback propiamente dicho
             $table->timestamps();
         });
     }

@@ -13,13 +13,41 @@ class ProgramController extends Controller
     use AuthorizesRequests;
 
     // LISTAR: Cada uno ve los programas de su grupo (o todos, según prefieras)
-    public function index()
+    public function index(Request $request) // <--- Agregado el Request
     {
-        $user = Auth::user();
-        // Por ahora, traemos todos los del grupo del usuario logueado
-        return Program::where('grupo_id', $user->grupo_id)
-                      ->with('user:id,name') // Para saber quién lo hizo
-                      ->get();
+        $user = $request->user();
+        $query = Program::query()->with(['user:id,name', 'rama:id,nombre', 'grupo:id,nombre']);
+
+        // --- FILTRADO SEGÚN MATRIZ DE ROLES ---
+        if ($user->hasRole('Director') || $user->hasRole('Aux Prog General')) {
+            return response()->json($query->get());
+        }
+
+        if ($user->hasRole('Aux Prog Rama')) {
+            return response()->json($query->where('rama_id', $user->rama_id)->get());
+        }
+
+        if ($user->hasRole('Jefe Grupo')) {
+            return response()->json($query->where('grupo_id', $user->grupo_id)->get());
+        }
+
+        // Educador: Solo ve sus programas
+        return response()->json($query->where('user_id', $user->id)->get());
+    }
+
+    // Nuevo método: Cambiar estado (Borrador -> Revisión -> Publicado)
+    public function updateStatus(Request $request, Program $program)
+    {
+        // Solo el autor o un Director puede cambiar el estado
+        $this->authorize('update', $program);
+
+        $validated = $request->validate([
+            'estado' => 'required|in:borrador,revision,publicado,rechazado'
+        ]);
+
+        $program->update(['estado' => $validated['estado']]);
+
+        return response()->json(['message' => 'Estado actualizado', 'program' => $program]);
     }
 
     // CREAR
@@ -37,7 +65,7 @@ class ProgramController extends Controller
             'rama_id' => $validated['rama_id'],
             'user_id' => Auth::id(),
             'grupo_id' => Auth::user()->grupo_id,
-            'estado' => 'publicado'
+            'estado' => 'borrador'
         ]);
 
         return response()->json([

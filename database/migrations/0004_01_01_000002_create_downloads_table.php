@@ -13,6 +13,10 @@ return new class extends Migration
     {
         Schema::create('downloads', function (Blueprint $table) {
             $table->id();
+            $table->string('nombre');
+            $table->string('descripcion')->nullable();
+            $table->string('archivo_path'); // Ruta del PDF/Doc en el servidor
+            $table->foreignId('user_id')->constrained();
             $table->timestamps();
         });
     }

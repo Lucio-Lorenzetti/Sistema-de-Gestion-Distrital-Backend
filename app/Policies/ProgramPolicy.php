@@ -21,7 +21,17 @@ class ProgramPolicy
      */
     public function view(User $user, Program $program): bool
     {
-        return false;
+        // Director y Auxiliar General ven todo
+        if ($user->hasRole('Director') || $user->hasRole('Aux Prog General')) return true;
+
+        // Auxiliar de Rama ve solo su rama
+        if ($user->hasRole('Aux Prog Rama')) return $user->rama_id === $program->rama_id;
+
+        // Jefe de Grupo ve todo su grupo
+        if ($user->hasRole('Jefe Grupo')) return $user->grupo_id === $program->grupo_id;
+
+        // Educador solo ve lo propio
+        return $user->id === $program->user_id;
     }
 
     /**
