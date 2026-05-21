@@ -7,14 +7,12 @@ use Illuminate\Foundation\Configuration\Middleware;
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         api: __DIR__.'/../routes/api.php',
+        apiPrefix: 'api',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        // 1. Habilita cookies y sesión para React
-        $middleware->statefulApi();
-
-        // 2. Registra el alias para tus roles (Matriz de Permisos)
+        // Sin statefulApi() — usamos Bearer tokens, no cookies
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckRole::class,
         ]);

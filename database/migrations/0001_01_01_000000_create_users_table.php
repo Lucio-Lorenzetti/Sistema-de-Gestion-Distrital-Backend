@@ -13,20 +13,24 @@ return new class extends Migration
     {
         // Tabla de Usuarios
         Schema::create('users', function (Blueprint $table) {
-            $table->id(); 
+            $table->id();
             $table->string('name');
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             
+            // 🛠️ AGREGÁ ESTAS DOS LÍNEAS AQUÍ:
+            $table->boolean('activo')->default(true);
+            $table->boolean('must_change_password')->default(false);
+            
+            // Si tenés grupo_id o rama_id de las conversaciones anteriores, dejalas acá
             $table->foreignId('grupo_id')->nullable()->constrained('grupos');
             $table->foreignId('rama_id')->nullable()->constrained('ramas');
-            $table->boolean('activo')->default(true);
 
             $table->rememberToken();
-            $table->softDeletes(); 
+            $table->softDeletes(); // El escudo de soft deletes que pusimos antes
             $table->timestamps();
-        }); // Aquí terminaba antes, ahora sigue...
+        }); 
 
         // Tabla de Reseteo de Password
         Schema::create('password_reset_tokens', function (Blueprint $table) {

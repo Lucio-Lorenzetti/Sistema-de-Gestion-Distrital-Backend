@@ -1,9 +1,10 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Auth;
 
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
@@ -26,18 +27,16 @@ class AuthController extends Controller
             ]);
         }
 
-        // Cargamos relaciones para que el Front sepa qué opciones mostrar
+        // Cargamos relaciones requeridas por la interfaz del frontend
         $user->load(['roles', 'grupo', 'rama']);
 
-        // Generamos el token de Sanctum
+        // Generamos también el token por si Zustand lo usa de respaldo alternativo
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
             'user' => $user,
             'token' => $token,
-            // FLAG 1: Redirigir a /activar-cuenta
-            'must_change_password' => $user->must_change_password, 
-            // FLAG 2: Redirigir a /seleccionar-funcion
+            'must_change_password' => (bool) $user->must_change_password, 
             'has_multiple_roles' => $user->roles->count() > 1,
             'status' => 'success'
         ]);
@@ -48,7 +47,7 @@ class AuthController extends Controller
     {
         $request->validate([
             'role_id' => 'required|exists:roles,id',
-            'grupo_id' => 'required|exists:groups,id',
+            'grupo_id' => 'required|exists:grupos,id', // 🛠️ CORREGIDO: de 'groups' a 'grupos'
         ]);
 
         $user = auth()->user();
@@ -58,7 +57,6 @@ class AuthController extends Controller
             return response()->json(['message' => 'Función no autorizada.'], 403);
         }
 
-        // Aquí podrías actualizar una "sesión activa" o simplemente confirmar
         return response()->json(['message' => 'Función seleccionada correctamente.']);
     }
 
@@ -66,10 +64,6 @@ class AuthController extends Controller
     public function forgotPassword(Request $request)
     {
         $request->validate(['email' => 'required|email']);
-
-        // Aquí usarías el broker de Laravel para enviar el mail
-        // Password::sendResetLink($request->only('email'));
-
         return response()->json(['message' => 'Si el correo existe, se ha enviado un link.']);
     }
 
@@ -78,16 +72,24 @@ class AuthController extends Controller
         $request->validate([
             'token' => 'required',
             'email' => 'required|email',
-            'password' => 'required|min:8|confirmed|regex:/[A-Z]/', // Valida mayúscula
+            'password' => 'required|min:8|confirmed|regex:/[A-Z]/', 
         ]);
 
-        // Lógica de reseteo de Laravel...
         return response()->json(['message' => 'Contraseña actualizada con éxito.']);
     }
 
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
-        return response()->json(['message' => 'Sesión cerrada.']);
+        // 🛠️ MEJORA: Borramos el token de la API
+        if ($request->user()) {
+            $request->user()->currentAccessToken()->delete();
+        }
+
+        // 🛠️ MEJORA: Destruimos la sesión de la cookie (Sanctum Stateful)
+        Auth::guard('web')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return response()->json(['message' => 'Sesión cerrada correctamente en el servidor y navegador.']);
     }
 }
