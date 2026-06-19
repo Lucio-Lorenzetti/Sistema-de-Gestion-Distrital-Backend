@@ -3,25 +3,25 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Api\Programas\ProgramController;
-use App\Http\Controllers\Api\Programas\NoteController; 
-use App\Http\Controllers\Api\Comunicacion\NewsController;       
-use App\Http\Controllers\Api\Comunicacion\DownloadController;  
+use App\Http\Controllers\Api\Programas\NoteController;
+use App\Http\Controllers\Api\Comunicacion\NewsController;
+use App\Http\Controllers\Api\Comunicacion\DownloadController;
 
-// Rutas públicas
+// Públicas
 Route::post('/login', [AuthController::class, 'login']);
+Route::get('news', [NewsController::class, 'index']);
+Route::get('news/{news}', [NewsController::class, 'show']);
 
-// Rutas protegidas (Requieren Token)
+// Protegidas
 Route::middleware('auth:sanctum')->group(function () {
-    
-    //Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::apiResource('programas', ProgramController::class);
 
     Route::get('programas/{program}/notas', [NoteController::class, 'index']);
     Route::post('programas/{program}/notas', [NoteController::class, 'store']);
 
-    Route::get('news', [NewsController::class, 'index']); 
-    Route::post('news', [NewsController::class, 'store']); 
+    Route::post('news', [NewsController::class, 'store']);
+    Route::put('news/{news}', [NewsController::class, 'update']);
     Route::delete('news/{news}', [NewsController::class, 'destroy']);
 
     Route::get('downloads', [DownloadController::class, 'index']);

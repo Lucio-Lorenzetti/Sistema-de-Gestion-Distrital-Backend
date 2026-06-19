@@ -1,19 +1,11 @@
 <?php
 
 return [
-    'paths' => ['api/*'],  // Sacamos sanctum/csrf-cookie, no lo necesitamos
-
+    'paths' => ['api/*', 'sanctum/csrf-cookie'],
+    'allowed_origins' => ['http://localhost:5173'],
     'allowed_methods' => ['*'],
-
-    'allowed_origins' => [env('FRONTEND_URL', 'http://localhost:5173')],
-
-    'allowed_origins_patterns' => [],
-
     'allowed_headers' => ['*'],
-
     'exposed_headers' => [],
-
     'max_age' => 0,
-
-    'supports_credentials' => false,  // Sin cookies, esto va en false
+    'supports_credentials' => true,
 ];

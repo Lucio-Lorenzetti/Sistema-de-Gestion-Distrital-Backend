@@ -10,17 +10,16 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class User extends Authenticatable
 {
-    // Agregamos HasApiTokens para que Laravel pueda generar los tokens de sesión
     use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
-    
+
     protected $fillable = [
-        'name', 
-        'email', 
-        'password', 
-        'grupo_id', 
-        'rama_id', 
+        'name',
+        'email',
+        'password',
+        'grupo_id',
+        'rama_id',
         'activo',
-        'must_change_password', // 🛠️ AGREGADO: Para evitar errores de MassAssignment en Seeders
+        'must_change_password',
     ];
 
     protected $hidden = [
@@ -28,19 +27,15 @@ class User extends Authenticatable
         'remember_token',
     ];
 
-    /**
-     * El "Escudo" del SuperAdmin
-     */
     protected static function booted()
     {
         static::deleting(function ($user) {
-            // Si intentan borrar al ID 1, lanzamos un error
             if ($user->id === 1) {
                 throw new \Exception("Acción denegada: El SuperAdministrador no puede ser eliminado.");
             }
         });
     }
-    
+
     /**
      * Relación con Roles
      */
@@ -50,18 +45,30 @@ class User extends Authenticatable
     }
 
     /**
-     * Helper útil para tus Middlewares de "Educador" vs "Director"
+     * Verifica si el usuario tiene un rol específico
      */
     public function hasRole($roleNombre)
     {
-        // 🛠️ CORREGIDO: de $nombreDelRol a $roleNombre para que use el parámetro real de la función
         return $this->roles()
-                ->whereRaw('LOWER(nombre) = ?', [strtolower($roleNombre)])
-                ->exists();
+            ->whereRaw('LOWER(nombre) = ?', [strtolower($roleNombre)])
+            ->exists();
     }
 
     /**
-     * Relación con el Grupo (Pompeya, etc.)
+     * Verifica si el usuario tiene alguno de los roles indicados
+     * Uso: $user->hasAnyRole(['Director', 'Aux Comunicación'])
+     */
+    public function hasAnyRole(array $roles): bool
+    {
+        $rolesNormalizados = array_map('strtolower', $roles);
+
+        return $this->roles()
+            ->whereIn(\DB::raw('LOWER(nombre)'), $rolesNormalizados)
+            ->exists();
+    }
+
+    /**
+     * Relación con el Grupo
      */
     public function grupo()
     {
@@ -69,8 +76,7 @@ class User extends Authenticatable
     }
 
     /**
-     * 🛠️ SOLUCIÓN AL ERROR 500: Relación con la Rama (Manada, Caminantes, etc.)
-     * Ahora el ->load('rama') del AuthController no va a fallar
+     * Relación con la Rama
      */
     public function rama()
     {
