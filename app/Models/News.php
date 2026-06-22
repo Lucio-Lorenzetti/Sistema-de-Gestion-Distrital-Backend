@@ -14,17 +14,17 @@ class News extends Model
         'contenido',
         'autor_id',
         'publicado_at',
-        'estado',       // Nuevo campo
-        'categoria',    // Nuevo campo
-        'visitas',      // Nuevo campo
+        'estado',
+        'categoria',
+        'visitas',
+        'imagen',  // ← agregá esta línea
     ];
 
     protected $casts = [
         'publicado_at' => 'datetime',
-        'visitas' => 'integer', // Aseguramos que siempre sea un número
+        'visitas' => 'integer',
     ];
 
-    // Relación con el autor
     public function autor()
     {
         return $this->belongsTo(User::class, 'autor_id');

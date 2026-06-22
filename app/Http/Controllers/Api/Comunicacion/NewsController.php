@@ -136,7 +136,7 @@ class NewsController extends Controller
             'contenido' => $noticia->contenido,
             'estado' => $noticia->estado,
             'categoria' => $noticia->categoria,
-            'imagen' => $noticia->imagen,
+            'imagen' => $noticia->imagen ? asset('storage/' . $noticia->imagen) : null,
             'visitas' => $noticia->visitas,
             'autor' => $noticia->autor?->name ?? 'Sin asignar',
             // Fecha absoluta para Home/Noticias
