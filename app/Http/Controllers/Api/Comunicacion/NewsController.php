@@ -11,6 +11,11 @@ class NewsController extends Controller
     // Público — Home y Noticias (sin auth)
     public function index(Request $request)
     {
+        // Busca las programadas que ya llegaron a su fecha y las auto-publica
+        News::where('estado', 'Programada')
+            ->where('publicado_at', '<=', now())
+            ->update(['estado' => 'Publicada']);
+
         $query = News::with('autor:id,name')->latest();
 
         // Filtro por estado (Dashboard lo usa: ?estado=Publicada)
