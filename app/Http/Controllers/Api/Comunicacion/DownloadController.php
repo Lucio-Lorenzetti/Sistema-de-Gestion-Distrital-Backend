@@ -4,13 +4,13 @@ namespace App\Http\Controllers\Api\Comunicacion;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\Download; // <--- IMPORTANTE: Faltaba importar el modelo
+use App\Models\Download;
+use Illuminate\Support\Facades\Storage;
 
 class DownloadController extends Controller
 {
     public function index()
     {
-        // Traemos todos los archivos para que los scouts los descarguen
         return response()->json(Download::with('user:id,name')->latest()->get());
     }
 
@@ -21,29 +21,42 @@ class DownloadController extends Controller
         }
 
         $request->validate([
-            'nombre' => 'required|string',
+            'nombre' => 'required|string|max:255',
             'descripcion' => 'nullable|string',
-            'archivo' => 'required|mimes:pdf,doc,docx,xlsx|max:5120' // Max 5MB
+            'tipo' => 'required|in:archivo,link',
+            'archivo' => 'required_if:tipo,archivo|nullable|mimes:pdf,doc,docx,xlsx,xls|max:5120',
+            'link' => 'required_if:tipo,link|nullable|url',
         ]);
 
-        $path = $request->file('archivo')->store('downloads', 'public');
-
-        $download = Download::create([
+        $data = [
             'nombre' => $request->nombre,
             'descripcion' => $request->descripcion,
-            'archivo_path' => $path,
-            'user_id' => auth()->id()
-        ]);
+            'tipo' => $request->tipo,
+            'user_id' => auth()->id(),
+        ];
 
-        return response()->json($download, 201);
+        if ($request->tipo === 'archivo') {
+            $data['archivo_path'] = $request->file('archivo')->store('downloads', 'public');
+        } else {
+            $data['link'] = $request->link;
+        }
+
+        $download = Download::create($data);
+
+        return response()->json($download->load('user:id,name'), 201);
     }
-    
+
     public function destroy(Download $download)
     {
         if (!auth()->user()->hasAnyRole(['Director', 'Aux Comunicación'])) {
             return response()->json(['message' => 'No autorizado'], 403);
         }
+
+        if ($download->archivo_path) {
+            Storage::disk('public')->delete($download->archivo_path);
+        }
+
         $download->delete();
-        return response()->json(['message' => 'Archivo eliminado']);
+        return response()->json(['message' => 'Elemento eliminado']);
     }
 }

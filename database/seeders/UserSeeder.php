@@ -32,20 +32,18 @@ class UserSeeder extends Seeder
         );
 
         // 2. 🔥 RESETEAR LA SECUENCIA DE POSTGRES A 2 🔥
-        // Esto le dice a Postgres que el próximo ID automático debe ser 2.
-        // Hacemos esto ANTES de crear cualquier otro usuario.
         if (config('database.default') === 'pgsql') {
             DB::statement("SELECT setval(pg_get_serial_sequence('users', 'id'), 2, true);");
         }
 
-        // 3. Ahora sí, asignamos el rol del Director (buscándolo por ID 1)
+        // 3. Ahora sí, asignamos el rol del Director
         $director = User::find(1);
         $rolDirector = Role::where('nombre', 'Director')->first();
         if ($rolDirector) {
             $director->roles()->syncWithoutDetaching([$rolDirector->id]);
         }
 
-        // 4. Creamos el resto de usuarios (Postgres usará la secuencia que acabamos de resetear)
+        // 4. Creamos el resto de usuarios
         $auxGeneral = User::create([
             'name' => 'Mariano Costa',
             'email' => 'aux.general@gmail.com',
@@ -87,7 +85,7 @@ class UserSeeder extends Seeder
         ]);
         $auxCom->roles()->attach(Role::where('nombre', 'Aux Comunicación')->first());
 
-        // 9. Jefe de Grupo
+        // 9. Jefe de Grupo (de prueba)
         $jefe = User::create([
             'name' => 'Jefe de Grupo Pompeya',
             'email' => 'jefe.grupo@gmail.com',
@@ -98,7 +96,7 @@ class UserSeeder extends Seeder
         ]);
         $jefe->roles()->attach(Role::whereIn('nombre', ['Jefe de Grupo', 'Educador'])->get());
 
-        // 10. Educador
+        // 10. Educador (de prueba)
         $educador = User::create([
             'name' => 'Educador de Prueba',
             'email' => 'educador@gmail.com',
@@ -108,5 +106,50 @@ class UserSeeder extends Seeder
             'grupo_id' => $grupoPrueba,
         ]);
         $educador->roles()->attach(Role::where('nombre', 'Educador')->first());
+
+        // --- NUEVOS DATOS SOLICITADOS ---
+        $grupos = [
+            ['numero' => '034', 'nombre' => 'Pompeya'],
+            ['numero' => '000', 'nombre' => 'San Pio'],
+            ['numero' => '999', 'nombre' => 'San Antonio de Padua'],
+            ['numero' => '294', 'nombre' => 'San Pantaleon'],
+            ['numero' => '000', 'nombre' => 'San Jorge'],
+            ['numero' => '000', 'nombre' => 'Nuestra Señora de Fatima'],
+            ['numero' => '000', 'nombre' => '19 de Mayo'],
+            ['numero' => '000', 'nombre' => 'San Francisco'],
+            ['numero' => '000', 'nombre' => 'Perito Moreno'],
+        ];
+
+        $ramasEducador = ['Manada', 'Unidad', 'Caminantes', 'Rover'];
+        $rolEducador = Role::where('nombre', 'Educador')->first();
+        $rolJefe = Role::where('nombre', 'Jefe de Grupo')->first();
+
+        foreach ($grupos as $g) {
+            $grupoModel = Grupo::firstOrCreate(['nombre' => $g['nombre']], ['numero' => $g['numero']]);
+
+            // Crear Jefe de Grupo
+            User::create([
+                'name' => "Jefe de Grupo {$g['nombre']}",
+                'email' => "jefe." . str_replace(' ', '', strtolower($g['nombre'])) . "@distrito.com",
+                'password' => $passwordFija,
+                'activo' => true,
+                'grupo_id' => $grupoModel->id
+            ])->roles()->attach([$rolJefe->id, $rolEducador->id]);
+
+            // Crear 2 educadores por cada rama
+            foreach ($ramasEducador as $nombreRama) {
+                $rama = Rama::where('nombre', $nombreRama)->first();
+                for ($i = 1; $i <= 2; $i++) {
+                    User::create([
+                        'name' => "Educador {$nombreRama} {$i} ({$g['nombre']})",
+                        'email' => "edu." . strtolower($nombreRama) . ".{$i}." . str_replace(' ', '', strtolower($g['nombre'])) . "@distrito.com",
+                        'password' => $passwordFija,
+                        'activo' => true,
+                        'grupo_id' => $grupoModel->id,
+                        'rama_id' => $rama?->id
+                    ])->roles()->attach($rolEducador->id);
+                }
+            }
+        }
     }
 }

@@ -60,7 +60,6 @@ class NewsController extends Controller
             $rutaImagen = $request->file('imagen')->store('noticias', 'public');
         }
 
-        // AQUI ESTABA EL ERROR: Faltaba 'copete'
         $news = News::create([
             'titulo' => $validated['titulo'],
             'copete' => $validated['copete'], // <--- ESTO ES LO QUE FALTA

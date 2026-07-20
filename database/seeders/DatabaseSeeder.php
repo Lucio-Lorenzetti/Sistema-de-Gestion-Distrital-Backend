@@ -12,11 +12,13 @@ class DatabaseSeeder extends Seeder
         // 1. Desactivamos FK para limpiar todo sin errores
         DB::statement('SET session_replication_role = replica;');
 
-        // 2. Limpiamos las tablas (en orden inverso de dependencia)
+        // 2. Limpiamos las tablas (debes agregar las nuevas tablas también aquí)
         DB::table('users')->truncate();
         DB::table('roles')->truncate();
         DB::table('grupos')->truncate();
         DB::table('ramas')->truncate();
+        DB::table('news')->truncate();
+        DB::table('courses')->truncate();
 
         // 3. Reactivamos FK
         DB::statement('SET session_replication_role = DEFAULT;');
@@ -27,7 +29,9 @@ class DatabaseSeeder extends Seeder
             DistritoSeeder::class,
             GrupoSeeder::class,
             RamaSeeder::class,
-            UserSeeder::class, // <-- UserSeeder debe ser el ÚLTIMO de los maestros
+            UserSeeder::class,
+            NewsSeeder::class,
+            CourseSeeder::class,
         ]);
     }
 }

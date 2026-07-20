@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     /**
      * Run the migrations.
      */
@@ -15,7 +14,9 @@ return new class extends Migration
             $table->id();
             $table->string('nombre');
             $table->string('descripcion')->nullable();
-            $table->string('archivo_path'); // Ruta del PDF/Doc en el servidor
+            $table->string('archivo_path')->nullable(); // puede ser null si es tipo "link"
+            $table->string('link')->nullable();          // puede ser null si es tipo "archivo"
+            $table->enum('tipo', ['archivo', 'link'])->default('archivo');
             $table->foreignId('user_id')->constrained();
             $table->timestamps();
         });

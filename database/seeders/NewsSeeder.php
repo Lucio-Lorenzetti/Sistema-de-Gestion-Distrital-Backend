@@ -64,6 +64,7 @@ class NewsSeeder extends Seeder
         foreach ($noticias as $index => $datos) {
             News::create([
                 'titulo' => $datos['titulo'],
+                'copete' => substr($contenidos[$index], 0, 100) . '...', // Creamos un copete corto
                 'contenido' => $contenidos[$index],
                 'autor_id' => $autor->id,
                 'estado' => $datos['estado'],
