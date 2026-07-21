@@ -15,6 +15,8 @@ Route::get('news/{news}', [NewsController::class, 'show']);
 Route::get('/courses', [CoursesController::class, 'index']);
 Route::get('/courses/{course}', [CoursesController::class, 'show']);
 Route::get('/bibliografia', [DownloadController::class, 'index']);
+Route::get('/bibliografia/{download}/descargar', [DownloadController::class, 'descargar']);
+
 // Protegidas
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);

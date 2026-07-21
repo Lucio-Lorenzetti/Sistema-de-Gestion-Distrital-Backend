@@ -17,6 +17,10 @@ class Course extends Model
         'ramas',
         'fecha_cierre',
         'fecha_fin',
+        'lugar',
+        'costo',
+        'modalidad',
+        'formador',
     ];
 
     protected $casts = [

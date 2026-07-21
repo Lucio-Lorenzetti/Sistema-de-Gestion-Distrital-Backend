@@ -68,6 +68,11 @@ class CoursesController extends Controller
             'ramas.*' => [Rule::in(['Pre-menores', 'Manada', 'Unidad', 'Caminantes', 'Rovers'])],
             'fecha_cierre' => ['required', 'date'],
             'fecha_fin' => ['required', 'date', 'after_or_equal:fecha_cierre'],
+            // 👇 Agregá estas reglas para que acepte los nuevos campos del formulario
+            'lugar' => ['nullable', 'string', 'max:255'],
+            'costo' => ['nullable', 'numeric', 'min:0'],
+            'modalidad' => ['nullable', 'string', 'max:100'],
+            'formador' => ['nullable', 'string', 'max:255'],
         ]);
     }
 }

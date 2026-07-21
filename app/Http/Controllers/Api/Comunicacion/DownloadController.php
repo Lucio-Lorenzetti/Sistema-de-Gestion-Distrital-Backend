@@ -59,4 +59,16 @@ class DownloadController extends Controller
         $download->delete();
         return response()->json(['message' => 'Elemento eliminado']);
     }
+
+    public function descargar(Download $download)
+    {
+        if ($download->tipo !== 'archivo' || !$download->archivo_path || !Storage::disk('public')->exists($download->archivo_path)) {
+            abort(404, 'Archivo no encontrado');
+        }
+
+        $extension = pathinfo($download->archivo_path, PATHINFO_EXTENSION);
+        $nombreDescarga = $download->nombre . '.' . $extension;
+
+        return Storage::disk('public')->download($download->archivo_path, $nombreDescarga);
+    }
 }

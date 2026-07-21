@@ -15,20 +15,28 @@ class Download extends Model
         'tipo',
         'user_id'
     ];
-
-    protected $appends = ['url_publica'];
+   
+    protected $appends = ['url_publica', 'url_descarga'];
 
     public function user()
     {
         return $this->belongsTo(User::class);
     }
 
-    // Devuelve la URL final, sea archivo subido o link externo
     public function getUrlPublicaAttribute()
     {
         if ($this->tipo === 'link') {
             return $this->link;
         }
-        return $this->archivo_path ? Storage::url($this->archivo_path) : null;
+        return $this->archivo_path ? url(Storage::url($this->archivo_path)) : null;
+    }
+
+
+    public function getUrlDescargaAttribute()
+    {
+        if ($this->tipo !== 'archivo') {
+            return null;
+        }
+        return url("/api/bibliografia/{$this->id}/descargar");
     }
 }
