@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Programas\NoteController;
 use App\Http\Controllers\Api\Comunicacion\NewsController;
 use App\Http\Controllers\Api\Comunicacion\DownloadController;
 use App\Http\Controllers\Api\Comunicacion\CoursesController;
+use App\Http\Controllers\ActivityLogController;
 
 // Públicas
 Route::post('/login', [AuthController::class, 'login']);
@@ -16,6 +17,7 @@ Route::get('/courses', [CoursesController::class, 'index']);
 Route::get('/courses/{course}', [CoursesController::class, 'show']);
 Route::get('/bibliografia', [DownloadController::class, 'index']);
 Route::get('/bibliografia/{download}/descargar', [DownloadController::class, 'descargar']);
+Route::get('/activity-logs', [ActivityLogController::class, 'index']);
 
 // Protegidas
 Route::middleware('auth:sanctum')->group(function () {

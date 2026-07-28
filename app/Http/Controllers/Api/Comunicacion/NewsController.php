@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Comunicacion;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\News;
+use App\Services\ActivityLogger;
 
 class NewsController extends Controller
 {
@@ -72,6 +73,8 @@ class NewsController extends Controller
             'visitas' => 0,
         ]);
 
+        ActivityLogger::log('noticia_creada', 'Se creó una nueva noticia', $news->titulo);        
+
         return response()->json($this->formatNoticia($news->load('autor:id,name')), 201);
     }
 
@@ -105,6 +108,8 @@ class NewsController extends Controller
         }
 
         $news->update($validated);
+        
+        ActivityLogger::log('noticia_actualizada', 'Se actualizó una noticia', $news->titulo);
 
         return response()->json($this->formatNoticia($news->load('autor:id,name')));
     }
@@ -116,6 +121,8 @@ class NewsController extends Controller
         }
 
         $news->delete();
+        
+        ActivityLogger::log('noticia_eliminada', 'Se eliminó una noticia', $news->titulo);
 
         return response()->json(['message' => 'Noticia eliminada']);
     }

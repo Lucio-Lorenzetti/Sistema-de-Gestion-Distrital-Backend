@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Comunicacion;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Download;
+use App\Services\ActivityLogger;
 use Illuminate\Support\Facades\Storage;
 
 class DownloadController extends Controller
@@ -42,6 +43,9 @@ class DownloadController extends Controller
         }
 
         $download = Download::create($data);
+        
+        ActivityLogger::log('download_creado', 'Se creó un nuevo download', $download->nombre);
+
 
         return response()->json($download->load('user:id,name'), 201);
     }
@@ -57,6 +61,9 @@ class DownloadController extends Controller
         }
 
         $download->delete();
+        
+        ActivityLogger::log('download_eliminado', 'Se eliminó un download', $download->nombre);
+
         return response()->json(['message' => 'Elemento eliminado']);
     }
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Comunicacion;
 
 use App\Http\Controllers\Controller;
 use App\Models\Course;
+use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -24,6 +25,8 @@ class CoursesController extends Controller
         $validated = $this->validateCourse($request);
 
         $course = Course::create($validated);
+        
+        ActivityLogger::log('curso_creado', 'Se creó un nuevo curso', $course->titulo);
 
         return response()->json($course, 201);
     }
@@ -33,11 +36,12 @@ class CoursesController extends Controller
         $validated = $this->validateCourse($request);
 
         $course->update($validated);
+        
+        ActivityLogger::log('curso_creado', 'Se creó un nuevo curso', $course->titulo);
 
         return response()->json($course);
     }
 
-    // — Actualización parcial: usada por el botón "Forzar cierre / Finalizar ahora" —
     public function patch(Request $request, Course $course)
     {
         $validated = $request->validate([
@@ -53,6 +57,8 @@ class CoursesController extends Controller
     public function destroy(Course $course)
     {
         $course->delete();
+        
+        ActivityLogger::log('curso_eliminado', 'Se eliminó un curso', $course->titulo);
 
         return response()->json(['message' => 'Curso eliminado correctamente']);
     }
