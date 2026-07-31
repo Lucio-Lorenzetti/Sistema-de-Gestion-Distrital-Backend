@@ -54,12 +54,15 @@ class UserSeeder extends Seeder
         $auxGeneral->roles()->attach(Role::where('nombre', 'Aux Prog General')->first());
 
         // Mapeo de Auxiliares de Rama
+        // OJO: estos nombres tienen que ser IDÉNTICOS a los de RamaSeeder
+        // (Castores, Lobatos, Unidad Scout, Caminantes, Rovers), si no, Rama::where()
+        // devuelve null y el auxiliar queda sin rama_id.
         $ramasMapeo = [
-            'Premenores' => 'aux.premenores@gmail.com',
-            'Manada' => 'aux.manada@gmail.com',
-            'Unidad' => 'aux.unidad@gmail.com',
-            'Caminantes' => 'aux.caminantes@gmail.com',
-            'Rover' => 'aux.rover@gmail.com',
+            'Castores'     => 'aux.castores@gmail.com',
+            'Lobatos'      => 'aux.lobatos@gmail.com',
+            'Unidad Scout' => 'aux.unidad@gmail.com',
+            'Caminantes'   => 'aux.caminantes@gmail.com',
+            'Rovers'       => 'aux.rovers@gmail.com',
         ];
 
         foreach ($ramasMapeo as $nombreRama => $emailAux) {
@@ -120,7 +123,9 @@ class UserSeeder extends Seeder
             ['numero' => '000', 'nombre' => 'Perito Moreno'],
         ];
 
-        $ramasEducador = ['Manada', 'Unidad', 'Caminantes', 'Rover'];
+        // Alineado 1:1 con los nombres de RamaSeeder (antes faltaba Castores
+        // y el resto no matcheaba: Manada->Lobatos, Unidad->Unidad Scout, Rover->Rovers)
+        $ramasEducador = ['Castores', 'Lobatos', 'Unidad Scout', 'Caminantes', 'Rovers'];
         $rolEducador = Role::where('nombre', 'Educador')->first();
         $rolJefe = Role::where('nombre', 'Jefe de Grupo')->first();
 
@@ -142,7 +147,7 @@ class UserSeeder extends Seeder
                 for ($i = 1; $i <= 2; $i++) {
                     User::create([
                         'name' => "Educador {$nombreRama} {$i} ({$g['nombre']})",
-                        'email' => "edu." . strtolower($nombreRama) . ".{$i}." . str_replace(' ', '', strtolower($g['nombre'])) . "@distrito.com",
+                        'email' => "edu." . str_replace(' ', '', strtolower($nombreRama)) . ".{$i}." . str_replace(' ', '', strtolower($g['nombre'])) . "@distrito.com",
                         'password' => $passwordFija,
                         'activo' => true,
                         'grupo_id' => $grupoModel->id,

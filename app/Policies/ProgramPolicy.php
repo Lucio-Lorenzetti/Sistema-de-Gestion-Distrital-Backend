@@ -4,72 +4,80 @@ namespace App\Policies;
 
 use App\Models\Program;
 use App\Models\User;
-use Illuminate\Auth\Access\Response;
 
 class ProgramPolicy
 {
     /**
-     * Determine whether the user can view any models.
+     * ¿Puede el usuario ver el listado de programas?
+     * El filtro real (qué programas ve cada uno) lo hace el controller
+     * (matriz de roles) + el scope Program::visiblePara() para Educador.
      */
     public function viewAny(User $user): bool
     {
-        return false;
+        return $user->hasAnyRole([
+            'Educador', 'Director', 'Aux Prog General', 'Aux Prog Rama', 'Jefe de Grupo',
+        ]);
     }
 
     /**
-     * Determine whether the user can view the model.
+     * ¿Puede ver ESTE programa puntual?
+     * Director/Aux Prog General: cualquiera.
+     * Aux Prog Rama: los de su rama.
+     * Jefe de Grupo: los de su grupo.
+     * Educador: autor, o mismo grupo + misma rama.
      */
     public function view(User $user, Program $program): bool
     {
-        // Director y Auxiliar General ven todo
-        if ($user->hasRole('Director') || $user->hasRole('Aux Prog General')) return true;
+        if ($user->hasAnyRole(['Director', 'Aux Prog General'])) {
+            return true;
+        }
 
-        // Auxiliar de Rama ve solo su rama
-        if ($user->hasRole('Aux Prog Rama')) return $user->rama_id === $program->rama_id;
+        if ($user->hasRole('Aux Prog Rama')) {
+            return $program->rama_id === $user->rama_id;
+        }
 
-        // Jefe de Grupo ve todo su grupo
-        if ($user->hasRole('Jefe Grupo')) return $user->grupo_id === $program->grupo_id;
+        if ($user->hasRole('Jefe de Grupo')) {
+            return $program->grupo_id === $user->grupo_id;
+        }
 
-        // Educador solo ve lo propio
-        return $user->id === $program->user_id;
+        return $program->owner_id === $user->id
+            || ($program->grupo_id === $user->grupo_id && $program->rama_id === $user->rama_id);
     }
 
     /**
-     * Determine whether the user can create models.
+     * ¿Puede crear/subir un programa nuevo?
      */
     public function create(User $user): bool
     {
-        return false;
+        return $user->hasRole('Educador');
     }
 
     /**
-     * Determine whether the user can update the model.
+     * ¿Puede editar este programa?
+     * - El autor siempre puede editar.
+     * - Mientras esté en 'borrador', cualquier educador del mismo grupo+rama
+     *   también puede editar (armado colaborativo antes de publicar).
+     * - Una vez 'publicado', solo el autor.
      */
     public function update(User $user, Program $program): bool
     {
-        // Solo el autor puede editar
-        return $user->id === $program->user_id;
+        if ($program->owner_id === $user->id) {
+            return true;
+        }
+
+        if ($program->estado === 'borrador') {
+            return $program->grupo_id === $user->grupo_id
+                && $program->rama_id === $user->rama_id;
+        }
+
+        return false;
     }
 
+    /**
+     * ¿Puede borrar este programa?
+     */
     public function delete(User $user, Program $program): bool
     {
-        // Solo el autor puede borrar
-        return $user->id === $program->user_id;
-    }
-
-    /**
-     * Determine whether the user can restore the model.
-     */
-    public function restore(User $user, Program $program): bool
-    {
-        return false;
-    }
-
-    /**
-     * Determine whether the user can permanently delete the model.
-     */
-    public function forceDelete(User $user, Program $program): bool
-    {
-        return false;
+        return $program->owner_id === $user->id;
     }
 }

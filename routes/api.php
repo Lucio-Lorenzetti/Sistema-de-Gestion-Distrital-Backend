@@ -25,6 +25,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     //Programas
     Route::apiResource('programas', ProgramController::class);
+    Route::patch('programas/{program}/estado', [ProgramController::class, 'updateStatus']); // <-- faltaba esta
     Route::get('programas/{program}/notas', [NoteController::class, 'index']);
     Route::post('programas/{program}/notas', [NoteController::class, 'store']);
 
