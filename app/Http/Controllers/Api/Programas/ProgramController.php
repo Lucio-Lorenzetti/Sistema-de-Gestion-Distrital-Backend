@@ -1,133 +1,129 @@
 <?php
 
-namespace App\Http\Controllers\Api\Programas;
+namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use App\Models\Program;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class ProgramController extends Controller
 {
-    use AuthorizesRequests;
-
     /**
-     * Listado de programas, según la matriz de roles:
-     * - Director / Aux Prog General -> todos los programas del distrito.
-     * - Aux Prog Rama -> los de su rama.
-     * - Jefe de Grupo -> los de su grupo.
-     * - Educador -> los suyos + los de su mismo grupo+rama (Program::visiblePara()).
+     * Obtener listado de programas accesibles por el usuario.
      */
     public function index(Request $request)
     {
-        $this->authorize('viewAny', Program::class);
+        $user = Auth::user();
 
-        $user = $request->user();
-        $query = Program::query()->with(['owner:id,name', 'rama:id,nombre', 'grupo:id,nombre']);
+        $programs = Program::with(['rama', 'owner:id,name,email'])
+            ->where('grupo_id', $user->grupo_id)
+            ->orderBy('created_at', 'desc')
+            ->get();
 
-        if ($user->hasAnyRole(['Director', 'Aux Prog General'])) {
-            return response()->json($query->latest()->get());
-        }
-
-        if ($user->hasRole('Aux Prog Rama')) {
-            return response()->json($query->where('rama_id', $user->rama_id)->latest()->get());
-        }
-
-        if ($user->hasRole('Jefe de Grupo')) {
-            return response()->json($query->where('grupo_id', $user->grupo_id)->latest()->get());
-        }
-
-        // Educador: dueño de sus programas + programas de su mismo grupo+rama
-        return response()->json(
-            $query->visiblePara($user)->latest()->get()
-        );
-    }
-
-    public function show(Program $program)
-    {
-        $this->authorize('view', $program);
-
-        return response()->json(
-            $program->load(['owner:id,name', 'rama:id,nombre', 'grupo:id,nombre'])
-        );
+        return response()->json($programs, 200);
     }
 
     /**
-     * Cambiar estado (Borrador -> Revisión -> Publicado / Rechazado).
-     * Reutiliza la policy 'update', que ya contempla el caso colaborativo en borrador.
-     */
-    public function updateStatus(Request $request, Program $program)
-    {
-        $this->authorize('update', $program);
-
-        $validated = $request->validate([
-            'estado' => 'required|in:borrador,revision,publicado,rechazado',
-        ]);
-
-        $program->update(['estado' => $validated['estado']]);
-
-        return response()->json(['message' => 'Estado actualizado', 'program' => $program]);
-    }
-
-    /**
-     * CREAR — validación mínima para que ande sin romper. Las reglas finas de
-     * negocio (campos obligatorios, adjuntos, etc.) se terminan de definir en
-     * la Fase 7 (US2), esto es solo para no dejar el endpoint roto mientras tanto.
+     * Guardar un nuevo programa.
      */
     public function store(Request $request)
     {
-        $this->authorize('create', Program::class);
-
         $validated = $request->validate([
-            'titulo' => 'required|string|max:255',
-            'diagnostico' => 'nullable|string',
-            'objetivos' => 'nullable|string',
-            'rama_id' => 'required|exists:ramas,id',
+            'titulo'       => 'required|string|max:255',
+            'diagnostico'  => 'nullable|string',
+            'objetivos'    => 'nullable|string',
+            'tipo'         => 'nullable|string',
+            'rama_id'      => 'required|exists:ramas,id',
+            'fechaInicio'  => 'nullable|date',
+            'fechaFin'     => 'nullable|date|after_or_equal:fechaInicio',
+            'dias'         => 'nullable|array',
+            'anexos'       => 'nullable|array',
         ]);
 
+        $user = Auth::user();
+
         $program = Program::create([
-            'titulo' => $validated['titulo'],
-            'diagnostico' => $validated['diagnostico'] ?? null,
-            'objetivos' => $validated['objetivos'] ?? null,
-            'rama_id' => $validated['rama_id'],
-            'owner_id' => Auth::id(),
-            'grupo_id' => Auth::user()->grupo_id,
-            'estado' => 'borrador',
+            'titulo'       => $validated['titulo'],
+            'diagnostico'  => $validated['diagnostico'] ?? null,
+            'objetivos'    => $validated['objetivos'] ?? null,
+            'tipo'         => $validated['tipo'] ?? 'cfa',
+            'rama_id'      => $validated['rama_id'],
+            'fecha_inicio' => $validated['fechaInicio'] ?? null,
+            'fecha_fin'    => $validated['fechaFin'] ?? null,
+            'cronograma'   => $validated['dias'] ?? [], // Mapea el array 'dias' del front
+            'anexos'       => $validated['anexos'] ?? [],
+            'owner_id'     => $user->id,
+            'grupo_id'     => $user->grupo_id,
+            'estado'       => 'borrador',
         ]);
 
         return response()->json([
-            'message' => 'Programa creado con éxito',
-            'data' => $program,
+            'message' => 'Programa creado exitosamente',
+            'data'    => $program->load('rama')
         ], 201);
     }
 
     /**
-     * EDITAR — igual que store(), validación mínima por ahora.
+     * Mostrar un programa específico.
      */
-    public function update(Request $request, Program $program)
+    public function show($id)
     {
-        $this->authorize('update', $program);
-
-        $validated = $request->validate([
-            'titulo' => 'sometimes|string|max:255',
-            'diagnostico' => 'nullable|string',
-            'objetivos' => 'nullable|string',
-            'cronograma' => 'nullable|array',
-            'anexos' => 'nullable|array',
-        ]);
-
-        $program->update($validated);
-
-        return response()->json(['message' => 'Programa actualizado', 'data' => $program]);
+        $program = Program::with(['rama', 'owner:id,name,email', 'grupo'])->findOrFail($id);
+        
+        return response()->json($program, 200);
     }
 
-    public function destroy(Program $program)
+    /**
+     * Actualizar un programa existente.
+     */
+    public function update(Request $request, $id)
     {
-        $this->authorize('delete', $program);
+        $program = Program::findOrFail($id);
 
+        $validated = $request->validate([
+            'titulo'       => 'sometimes|required|string|max:255',
+            'diagnostico'  => 'nullable|string',
+            'objetivos'    => 'nullable|string',
+            'tipo'         => 'nullable|string',
+            'rama_id'      => 'sometimes|required|exists:ramas,id',
+            'fechaInicio'  => 'nullable|date',
+            'fechaFin'     => 'nullable|date|after_or_equal:fechaInicio',
+            'dias'         => 'nullable|array',
+            'anexos'       => 'nullable|array',
+            'estado'       => 'nullable|in:borrador,enviado,aprobado,rechazado',
+        ]);
+
+        $updateData = [];
+
+        if (array_key_exists('titulo', $validated))      $updateData['titulo'] = $validated['titulo'];
+        if (array_key_exists('diagnostico', $validated)) $updateData['diagnostico'] = $validated['diagnostico'];
+        if (array_key_exists('objetivos', $validated))   $updateData['objetivos'] = $validated['objetivos'];
+        if (array_key_exists('tipo', $validated))        $updateData['tipo'] = $validated['tipo'];
+        if (array_key_exists('rama_id', $validated))     $updateData['rama_id'] = $validated['rama_id'];
+        if (array_key_exists('fechaInicio', $validated)) $updateData['fecha_inicio'] = $validated['fechaInicio'];
+        if (array_key_exists('fechaFin', $validated))    $updateData['fecha_fin'] = $validated['fechaFin'];
+        if (array_key_exists('dias', $validated))        $updateData['cronograma'] = $validated['dias'];
+        if (array_key_exists('anexos', $validated))      $updateData['anexos'] = $validated['anexos'];
+        if (array_key_exists('estado', $validated))      $updateData['estado'] = $validated['estado'];
+
+        $program->update($updateData);
+
+        return response()->json([
+            'message' => 'Programa actualizado exitosamente',
+            'data'    => $program->fresh('rama')
+        ], 200);
+    }
+
+    /**
+     * Eliminar un programa.
+     */
+    public function destroy($id)
+    {
+        $program = Program::findOrFail($id);
         $program->delete();
 
-        return response()->json(['message' => 'Programa eliminado correctamente']);
+        return response()->json([
+            'message' => 'Programa eliminado correctamente'
+        ], 200);
     }
 }

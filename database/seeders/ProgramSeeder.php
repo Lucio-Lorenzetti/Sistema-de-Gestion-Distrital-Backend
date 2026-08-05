@@ -7,22 +7,19 @@ use App\Models\Grupo;
 use App\Models\Rama;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Carbon;
 
 class ProgramSeeder extends Seeder
 {
     /**
-     * Genera una grilla de 5 grupos x 5 ramas = hasta 25 programas.
-     * Cada programa queda asignado a un Educador real de ese grupo+rama
-     * (creado en UserSeeder), así podemos probar los 4 casos de visibilidad:
-     *  - mismo grupo + misma rama   -> debe verse
-     *  - mismo grupo + otra rama    -> no debe verse
-     *  - otro grupo + misma rama    -> no debe verse
-     *  - otro grupo + otra rama     -> no debe verse
+     * Genera programas de prueba para la grilla de grupos y ramas.
      */
     public function run(): void
     {
         $gruposDePrueba = ['Pompeya', 'San Pio', 'San Pantaleon', 'Nuestra Señora de Fatima', 'San Francisco'];
         $ramasDePrueba = ['Castores', 'Lobatos', 'Unidad Scout', 'Caminantes', 'Rovers'];
+        
+        $tipos = ['cfa', 'campamento', 'cuatrimestre'];
 
         $temasPorRama = [
             'Castores' => [
@@ -62,8 +59,8 @@ class ProgramSeeder extends Seeder
             ],
         ];
 
-        // 3 de cada 4 quedan "publicado", 1 de cada 4 "borrador", para tener variedad de estados
-        $estados = ['publicado', 'publicado', 'publicado', 'borrador'];
+        // 3 de cada 4 quedan "aprobado" (equivalente a publicado), 1 de cada 4 "borrador"
+        $estados = ['aprobado', 'aprobado', 'aprobado', 'borrador'];
         $contador = 0;
 
         foreach ($gruposDePrueba as $indexGrupo => $nombreGrupo) {
@@ -95,23 +92,42 @@ class ProgramSeeder extends Seeder
 
                 $titulo = $temasPorRama[$nombreRama][$indexGrupo] ?? "Programa de {$nombreRama}";
                 $estado = $estados[$contador % count($estados)];
+                $tipo = $tipos[$contador % count($tipos)];
+
+                // Fechas ficticias de prueba
+                $fechaInicio = Carbon::now()->addDays($contador * 2)->format('Y-m-d');
+                $fechaFin = Carbon::now()->addDays(($contador * 2) + 3)->format('Y-m-d');
 
                 Program::create([
-                    'titulo' => $titulo,
-                    'diagnostico' => "Diagnóstico de {$nombreRama} del Grupo {$nombreGrupo}: necesidades detectadas en la última reunión de programa.",
-                    'objetivos' => "Fortalecer el método scout en {$nombreRama}, fomentando el trabajo en equipo y la progresión personal.",
-                    'cronograma' => [
-                        ['dia' => 'Sábado', 'hora' => '15:00', 'actividad' => 'Apertura y bienvenida'],
-                        ['dia' => 'Sábado', 'hora' => '15:30', 'actividad' => 'Actividad central: ' . $titulo],
-                        ['dia' => 'Sábado', 'hora' => '17:00', 'actividad' => 'Cierre y ronda'],
+                    'titulo'       => $titulo,
+                    'diagnostico'  => "Diagnóstico de {$nombreRama} del Grupo {$nombreGrupo}: necesidades detectadas en la última reunión de programa.",
+                    'objetivos'    => "Fortalecer el método scout en {$nombreRama}, fomentando el trabajo en equipo y la progresión personal.",
+                    'tipo'         => $tipo,
+                    'fecha_inicio' => $fechaInicio,
+                    'fecha_fin'    => $fechaFin,
+                    'cronograma'   => [
+                        [
+                            'dia'            => 1,
+                            'fecha'          => $fechaInicio,
+                            'nombreDia'      => 'Sábado',
+                            'fechaFormatted' => 'Sábado, 15 de Octubre',
+                            'contenidoHtml'  => "<p><strong>15:00</strong> - Apertura y bienvenida.</p><p><strong>15:30</strong> - Actividad central: {$titulo}</p><p><strong>17:00</strong> - Cierre y ronda.</p>"
+                        ],
+                        [
+                            'dia'            => 2,
+                            'fecha'          => $fechaFin,
+                            'nombreDia'      => 'Domingo',
+                            'fechaFormatted' => 'Domingo, 16 de Octubre',
+                            'contenidoHtml'  => '<p><strong>10:00</strong> - Evaluación general y cierre de la actividad.</p>'
+                        ]
                     ],
                     'anexos' => [
                         ['tipo' => 'juego', 'nombre' => 'Juego de integración'],
                         ['tipo' => 'material', 'nombre' => 'Lista de materiales necesarios'],
                     ],
-                    'estado' => $estado,
+                    'estado'   => $estado,
                     'owner_id' => $owner->id,
-                    'rama_id' => $rama->id,
+                    'rama_id'  => $rama->id,
                     'grupo_id' => $grupo->id,
                 ]);
 
@@ -119,6 +135,6 @@ class ProgramSeeder extends Seeder
             }
         }
 
-        $this->command->info("ProgramSeeder: {$contador} programas creados.");
+        $this->command->info("ProgramSeeder: {$contador} programas creados exitosamente.");
     }
 }

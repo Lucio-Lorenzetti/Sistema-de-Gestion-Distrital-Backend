@@ -9,30 +9,29 @@ class Program extends Model
 {
     use HasFactory;
 
-    protected $table = 'programs';
-
     protected $fillable = [
         'titulo',
         'diagnostico',
         'objetivos',
+        'tipo',
+        'rama_id',
+        'grupo_id',
+        'owner_id',
+        'fecha_inicio',
+        'fecha_fin',
         'cronograma',
         'anexos',
         'estado',
-        'owner_id',
-        'rama_id',
-        'grupo_id',
     ];
 
     protected $casts = [
         'cronograma' => 'array',
         'anexos' => 'array',
+        'fecha_inicio' => 'date:Y-m-d',
+        'fecha_fin' => 'date:Y-m-d',
     ];
 
-    public function owner()
-    {
-        return $this->belongsTo(User::class, 'owner_id');
-    }
-
+    // Relaciones
     public function rama()
     {
         return $this->belongsTo(Rama::class);
@@ -43,20 +42,8 @@ class Program extends Model
         return $this->belongsTo(Grupo::class);
     }
 
-    /**
-     * Scope de visibilidad para Educadores:
-     * ve los programas que él mismo subió, o los de su mismo grupo + rama.
-     *
-     * Uso: Program::visiblePara($user)->get();
-     */
-    public function scopeVisiblePara($query, User $user)
+    public function owner()
     {
-        return $query->where(function ($q) use ($user) {
-            $q->where('owner_id', $user->id)
-              ->orWhere(function ($q2) use ($user) {
-                  $q2->where('grupo_id', $user->grupo_id)
-                     ->where('rama_id', $user->rama_id);
-              });
-        });
+        return $this->belongsTo(User::class, 'owner_id');
     }
 }

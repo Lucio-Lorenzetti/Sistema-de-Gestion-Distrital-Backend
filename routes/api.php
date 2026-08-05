@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Api\Gestion\GrupoController;
 use App\Http\Controllers\Api\Programas\ProgramController;
 use App\Http\Controllers\Api\Programas\NoteController;
 use App\Http\Controllers\Api\Comunicacion\NewsController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\ActivityLogController;
 
 // Públicas
 Route::post('/login', [AuthController::class, 'login']);
+Route::get('/grupos', [GrupoController::class, 'index']);
 Route::get('news', [NewsController::class, 'index']);
 Route::get('news/{news}', [NewsController::class, 'show']);
 Route::get('/courses', [CoursesController::class, 'index']);

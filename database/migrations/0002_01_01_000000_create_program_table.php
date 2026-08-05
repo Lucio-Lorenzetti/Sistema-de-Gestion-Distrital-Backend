@@ -6,9 +6,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('programs', function (Blueprint $table) {
@@ -16,22 +13,28 @@ return new class extends Migration
             $table->string('titulo');
             $table->text('diagnostico')->nullable();
             $table->text('objetivos')->nullable();
+            $table->string('tipo')->default('cfa'); // 'cfa', 'ciclo', etc.
             
-            // Aquí vive la magia del "Drive"
-            $table->jsonb('cronograma')->nullable(); // Guardarás el array de horarios
-            $table->jsonb('anexos')->nullable();     // Guardarás el array de juegos/detalles
+            // Relaciones
+            $table->foreignId('rama_id')->constrained('ramas')->onDelete('cascade');
+            $table->foreignId('grupo_id')->nullable()->constrained('grupos')->onDelete('set null');
+            $table->foreignId('owner_id')->constrained('users')->onDelete('cascade');
+
+            // Fechas del programa
+            $table->date('fecha_inicio')->nullable();
+            $table->date('fecha_fin')->nullable();
+
+            // Estructuras compuestas en JSONB (PostgreSQL)
+            $table->jsonb('cronograma')->nullable(); // Guardará el array 'dias' con el HTML de cada día
+            $table->jsonb('anexos')->nullable();
+
+            // Estado del ciclo de vida
+            $table->enum('estado', ['borrador', 'enviado', 'aprobado', 'rechazado'])->default('borrador');
             
-            $table->string('estado')->default('borrador');
-            $table->foreignId('owner_id')->constrained('users');
-            $table->foreignId('rama_id')->constrained('ramas');
-            $table->foreignId('grupo_id')->constrained('grupos');
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('programs');
