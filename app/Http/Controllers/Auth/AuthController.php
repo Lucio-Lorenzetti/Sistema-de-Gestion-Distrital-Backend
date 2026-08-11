@@ -42,6 +42,18 @@ class AuthController extends Controller
         ]);
     }
 
+    public function me(Request $request)
+    {
+        $user = $request->user();
+        $user->load(['roles', 'grupo', 'rama']);
+
+        return response()->json([
+            'user' => $user,
+            'must_change_password' => (bool) $user->must_change_password,
+            'has_multiple_roles' => $user->roles->count() > 1,
+        ]);
+    }
+
     // 3. Selección de Función: Validar que el rol/grupo elegido sea válido
     public function seleccionarFuncion(Request $request)
     {

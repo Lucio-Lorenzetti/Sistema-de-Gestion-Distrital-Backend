@@ -13,6 +13,7 @@ class Program extends Model
         'titulo',
         'diagnostico',
         'objetivos',
+        'educadores_a_cargo',
         'tipo',
         'rama_id',
         'grupo_id',

@@ -13,8 +13,9 @@ return new class extends Migration
             $table->string('titulo');
             $table->text('diagnostico')->nullable();
             $table->text('objetivos')->nullable();
-            $table->string('tipo')->default('cfa'); // 'cfa', 'ciclo', etc.
-            
+            $table->text('educadores_a_cargo')->nullable(); // ← nueva columna
+            $table->string('tipo')->default('cfa');
+
             // Relaciones
             $table->foreignId('rama_id')->constrained('ramas')->onDelete('cascade');
             $table->foreignId('grupo_id')->nullable()->constrained('grupos')->onDelete('set null');
@@ -25,12 +26,12 @@ return new class extends Migration
             $table->date('fecha_fin')->nullable();
 
             // Estructuras compuestas en JSONB (PostgreSQL)
-            $table->jsonb('cronograma')->nullable(); // Guardará el array 'dias' con el HTML de cada día
+            $table->jsonb('cronograma')->nullable();
             $table->jsonb('anexos')->nullable();
 
             // Estado del ciclo de vida
             $table->enum('estado', ['borrador', 'enviado', 'aprobado', 'rechazado'])->default('borrador');
-            
+
             $table->timestamps();
         });
     }

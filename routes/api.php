@@ -24,12 +24,14 @@ Route::get('/activity-logs', [ActivityLogController::class, 'index']);
 // Protegidas
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::get('/me', [AuthController::class, 'me']);
 
     //Programas
     Route::apiResource('programas', ProgramController::class);
     Route::patch('programas/{program}/estado', [ProgramController::class, 'updateStatus']); // <-- faltaba esta
     Route::get('programas/{program}/notas', [NoteController::class, 'index']);
     Route::post('programas/{program}/notas', [NoteController::class, 'store']);
+    Route::get('programas/{program}/pdf', [ProgramController::class, 'pdf']);
 
     //Noticias
     Route::post('news', [NewsController::class, 'store']);
