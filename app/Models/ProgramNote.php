@@ -10,8 +10,14 @@ class ProgramNote extends Model
     protected $fillable = [
         'program_id',
         'user_id',
+        'parent_id',
+        'line_ref',
         'contenido',
         'resuelta'
+    ];
+
+    protected $casts = [
+        'resuelta' => 'boolean',
     ];
 
     public function program() {
@@ -20,5 +26,13 @@ class ProgramNote extends Model
 
     public function user() {
         return $this->belongsTo(User::class);
+    }
+
+    public function parent() {
+        return $this->belongsTo(ProgramNote::class, 'parent_id');
+    }
+
+    public function replies() {
+        return $this->hasMany(ProgramNote::class, 'parent_id');
     }
 }

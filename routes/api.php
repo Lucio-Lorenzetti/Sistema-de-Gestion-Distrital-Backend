@@ -27,10 +27,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
 
     //Programas
+    Route::get('/comentarios-pendientes', [NoteController::class, 'pendientes']);
     Route::apiResource('programas', ProgramController::class);
     Route::patch('programas/{program}/estado', [ProgramController::class, 'updateStatus']); // <-- faltaba esta
     Route::get('programas/{program}/notas', [NoteController::class, 'index']);
     Route::post('programas/{program}/notas', [NoteController::class, 'store']);
+    Route::patch('programas/{program}/notas/{note}/resolucion', [NoteController::class, 'toggleResolucion']);
     Route::get('programas/{program}/pdf', [ProgramController::class, 'pdf']);
 
     //Noticias

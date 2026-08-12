@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php artisan tinker '--execute= *)",
+      "Bash(DB_CONNECTION=pgsql DB_HOST=db.hsbuuwkrxrlcrbelofad.supabase.co DB_PORT=5432 DB_DATABASE=postgres DB_USERNAME=postgres DB_PASSWORD=distrito3zona13 php artisan tinker '--execute= *)",
+      "Bash(git status *)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\Lucho\\Desktop\\Proyectos\\Proyecto Final\\sistema-gestion-distrital-back"
+    ]
+  }
+}

@@ -47,4 +47,9 @@ class Program extends Model
     {
         return $this->belongsTo(User::class, 'owner_id');
     }
+
+    public function notes()
+    {
+        return $this->hasMany(ProgramNote::class)->whereNull('parent_id')->orderBy('created_at');
+    }
 }

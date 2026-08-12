@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Program;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class ProgramController extends Controller
@@ -89,6 +90,8 @@ class ProgramController extends Controller
     {
         $program = Program::with(['rama', 'owner:id,name,email', 'grupo'])->findOrFail($id);
 
+        Gate::authorize('view', $program);
+
         return response()->json($program, 200);
     }
 
@@ -99,11 +102,26 @@ class ProgramController extends Controller
         $cronograma = $program->cronograma ?? [];
         $disclaimer = null;
 
+        $encabezadosDuplicados = ['Título', 'Educadores a Cargo', 'Diagnóstico', 'Objetivo'];
+
         if (isset($cronograma['contenidoHtml'])) {
             [$cronograma['contenidoHtml'], $disclaimer] = $this->extraerAyudaHtml($cronograma['contenidoHtml']);
-            $cronograma['contenidoHtml'] = $this->quitarSeccionesDuplicadas($cronograma['contenidoHtml'], ['Título', 'Educadores a Cargo', 'Diagnóstico', 'Objetivo']);
+            $cronograma['contenidoHtml'] = $this->quitarSeccionesDuplicadas($cronograma['contenidoHtml'], $encabezadosDuplicados);
         } elseif (isset($cronograma['contenido'])) {
             [$cronograma['contenido'], $disclaimer] = $this->extraerAyudaTexto($cronograma['contenido']);
+        } elseif (is_array($cronograma)) {
+            // CFA: cada día trae su propio bloque de ayuda gris y repite los mismos
+            // encabezados (Título/Educadores a Cargo/Diagnóstico/Objetivo). Se limpia
+            // cada día y el disclaimer se muestra una sola vez al final del PDF.
+            foreach ($cronograma as $i => $dia) {
+                if (!is_array($dia) || !isset($dia['contenidoHtml'])) {
+                    continue;
+                }
+
+                [$html, $ayudaDia] = $this->extraerAyudaHtmlDia($dia['contenidoHtml']);
+                $cronograma[$i]['contenidoHtml'] = $this->quitarSeccionesDuplicadas($html, $encabezadosDuplicados);
+                $disclaimer ??= $ayudaDia;
+            }
         }
 
         $pdf = Pdf::loadView('programas.pdf', compact('program', 'cronograma', 'disclaimer'))
@@ -126,6 +144,33 @@ class ProgramController extends Controller
             $resto = substr($html, strlen($m[0]));
 
             return [$resto, $ayuda !== '' ? $ayuda : null];
+        }
+
+        return [$html, null];
+    }
+
+    /**
+     * Equivalente a extraerAyudaHtml() para el cronograma de CFA (array de días).
+     * Cada día empieza con un título gris duplicado ("Programa CFA — Día N (fecha)")
+     * que se deja intacto en el cuerpo, y sólo el día 1 tiene, justo después, el
+     * párrafo de ayuda real (sin <strong>). Se avanza sobre el título sin tocarlo
+     * y se extrae únicamente ese párrafo si está presente.
+     */
+    private function extraerAyudaHtmlDia(string $html): array
+    {
+        $offset = 0;
+
+        if (preg_match('/^\s*<div>\s*<span[^>]*style="[^"]*color:\s*#9ca3af[^"]*"[^>]*>\s*<strong>.*?<\/strong>\s*<\/span>\s*<\/div>\s*(?:<div>\s*<br\s*\/?>\s*<\/div>)?/is', $html, $m)) {
+            $offset = strlen($m[0]);
+        }
+
+        $resto = substr($html, $offset);
+
+        if (preg_match('/^\s*<div>\s*<span[^>]*style="[^"]*color:\s*#9ca3af[^"]*"[^>]*>(.*?)<\/span>\s*<\/div>\s*(?:<div>\s*<br\s*\/?>\s*<\/div>)?/is', $resto, $m2)) {
+            $ayuda = trim(strip_tags($m2[1]));
+            $restoLimpio = substr($resto, strlen($m2[0]));
+
+            return [substr($html, 0, $offset) . $restoLimpio, $ayuda !== '' ? $ayuda : null];
         }
 
         return [$html, null];
@@ -173,6 +218,12 @@ class ProgramController extends Controller
     public function update(Request $request, $id)
     {
         $program = Program::findOrFail($id);
+
+        // El autor siempre puede editar; mientras el programa esté en 'borrador',
+        // cualquier educador de la misma rama+grupo también (armado colaborativo).
+        // Auxiliares, Jefe de Grupo y Director no comparten simultáneamente rama_id
+        // y grupo_id con ningún programa, así que quedan afuera de esta vía.
+        Gate::authorize('update', $program);
 
         $validated = $request->validate([
             'titulo'            => 'sometimes|required|string|max:255',
