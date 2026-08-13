@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
@@ -20,12 +21,22 @@ class User extends Authenticatable
         'rama_id',
         'activo',
         'must_change_password',
+        'foto_perfil',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
     ];
+
+    protected $appends = [
+        'foto_perfil_url',
+    ];
+
+    public function getFotoPerfilUrlAttribute()
+    {
+        return $this->foto_perfil ? url(Storage::url($this->foto_perfil)) : null;
+    }
 
     protected static function booted()
     {

@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -88,6 +89,47 @@ class AuthController extends Controller
         ]);
 
         return response()->json(['message' => 'Contraseña actualizada con éxito.']);
+    }
+
+    /**
+     * Subir o reemplazar la foto de perfil del usuario logueado. No es obligatoria:
+     * mientras no exista, el frontend sigue mostrando las iniciales.
+     */
+    public function updateFotoPerfil(Request $request)
+    {
+        $request->validate([
+            'foto_perfil' => 'required|image|mimes:jpeg,png,jpg,webp|max:2048',
+        ]);
+
+        $user = $request->user();
+
+        if ($user->foto_perfil) {
+            Storage::disk('public')->delete($user->foto_perfil);
+        }
+
+        $user->foto_perfil = $request->file('foto_perfil')->store('avatars', 'public');
+        $user->save();
+
+        return response()->json([
+            'message' => 'Foto de perfil actualizada correctamente',
+            'foto_perfil_url' => $user->foto_perfil_url,
+        ]);
+    }
+
+    /**
+     * Quitar la foto de perfil del usuario logueado (vuelve a mostrar iniciales).
+     */
+    public function deleteFotoPerfil(Request $request)
+    {
+        $user = $request->user();
+
+        if ($user->foto_perfil) {
+            Storage::disk('public')->delete($user->foto_perfil);
+            $user->foto_perfil = null;
+            $user->save();
+        }
+
+        return response()->json(['message' => 'Foto de perfil eliminada correctamente']);
     }
 
     public function logout(Request $request)

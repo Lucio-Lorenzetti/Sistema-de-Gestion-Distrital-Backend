@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Programas;
 
 use App\Http\Controllers\Controller;
 use App\Models\Program;
+use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -76,6 +77,8 @@ class ProgramController extends Controller
             'grupo_id'            => $user->grupo_id,
             'estado'              => 'borrador',
         ]);
+
+        ActivityLogger::log('programa_creado', 'Se subió un nuevo programa', $program->titulo);
 
         return response()->json([
             'message' => 'Programa creado exitosamente',
@@ -272,10 +275,45 @@ class ProgramController extends Controller
             'estado' => 'required|in:borrador,enviado,aprobado,rechazado',
         ]);
 
-        $program->update(['estado' => $validated['estado']]);
+        Gate::authorize('updateStatus', [$program, $validated['estado']]);
+
+        // Cualquier cambio de estado invalida un pedido de aprobación anterior:
+        // volvió a borrador (hay que reenviarlo), o ya se resolvió (aprobado/rechazado).
+        $program->update([
+            'estado' => $validated['estado'],
+            'aprobacion_solicitada_at' => null,
+        ]);
+
+        match ($validated['estado']) {
+            'enviado'  => ActivityLogger::log('programa_enviado', 'Se envió un programa a revisión', $program->titulo),
+            'aprobado' => ActivityLogger::log('programa_aprobado', 'Se aprobó un programa', $program->titulo),
+            default    => null,
+        };
 
         return response()->json([
             'message' => 'Estado actualizado correctamente',
+            'data'    => $program->fresh(['rama', 'grupo']),
+        ], 200);
+    }
+
+    /**
+     * El autor marca el programa (ya 'enviado') como listo para que lo aprueben.
+     * No cambia `estado` — es una señal aparte, para que el board de "próximos a
+     * aprobar" del auxiliar solo muestre lo que el educador puntualmente pidió,
+     * no todo lo que esté en revisión (que puede seguir yendo y viniendo con comentarios).
+     */
+    public function solicitarAprobacion($id)
+    {
+        $program = Program::findOrFail($id);
+
+        Gate::authorize('solicitarAprobacion', $program);
+
+        $program->update(['aprobacion_solicitada_at' => now()]);
+
+        ActivityLogger::log('programa_aprobacion_solicitada', 'Se solicitó la aprobación de un programa', $program->titulo);
+
+        return response()->json([
+            'message' => 'Aprobación solicitada correctamente',
             'data'    => $program->fresh(['rama', 'grupo']),
         ], 200);
     }

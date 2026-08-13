@@ -132,4 +132,64 @@ class ProgramPolicy
     {
         return $program->owner_id === $user->id;
     }
+
+    /**
+     * El autor de un programa, y cualquier educador de la misma rama+grupo, tienen
+     * exactamente las mismas capacidades sobre él — es trabajo colaborativo del
+     * grupo, no algo personal de quien lo creó. A diferencia de update(), esto NO
+     * depende del estado: se usa para acciones que justamente ocurren fuera de
+     * 'borrador' (volver a borrador, solicitar aprobación).
+     */
+    private function esColaborador(User $user, Program $program): bool
+    {
+        return $program->owner_id === $user->id
+            || ($program->grupo_id === $user->grupo_id && $program->rama_id === $user->rama_id);
+    }
+
+    /**
+     * ¿Puede pasar el programa de $program->estado a $nuevoEstado?
+     * Cada transición tiene su propio dueño:
+     * - borrador → enviado ("Enviar a revisión"): mismo criterio que update()
+     *   (autor, o cualquier educador del mismo grupo+rama mientras está en borrador).
+     * - enviado → borrador ("Volver a borrador"): autor, o cualquier educador del
+     *   mismo grupo+rama.
+     * - enviado → aprobado/rechazado ("Aprobar"/"Rechazar"): Aux Prog General
+     *   (cualquiera) o Aux Prog Rama (solo los de su rama) — mismo alcance que comment().
+     * Cualquier otra combinación (saltos de estado, mismo estado, etc.) queda afuera.
+     */
+    public function updateStatus(User $user, Program $program, string $nuevoEstado): bool
+    {
+        if ($program->estado === 'borrador' && $nuevoEstado === 'enviado') {
+            return $this->update($user, $program);
+        }
+
+        if ($program->estado === 'enviado' && $nuevoEstado === 'borrador') {
+            return $this->esColaborador($user, $program);
+        }
+
+        if ($program->estado === 'enviado' && in_array($nuevoEstado, ['aprobado', 'rechazado'], true)) {
+            if ($user->hasRole('Aux Prog General')) {
+                return true;
+            }
+
+            if ($user->hasRole('Aux Prog Rama')) {
+                return $program->rama_id === $user->rama_id;
+            }
+
+            return false;
+        }
+
+        return false;
+    }
+
+    /**
+     * ¿Puede marcar el programa como "listo para aprobar"? Autor, o cualquier
+     * educador del mismo grupo+rama, y solo mientras está 'enviado' (si no está
+     * en revisión no hay nada que pedir; una vez aprobado/rechazado/vuelto a
+     * borrador hay que volver a enviarlo primero).
+     */
+    public function solicitarAprobacion(User $user, Program $program): bool
+    {
+        return $program->estado === 'enviado' && $this->esColaborador($user, $program);
+    }
 }

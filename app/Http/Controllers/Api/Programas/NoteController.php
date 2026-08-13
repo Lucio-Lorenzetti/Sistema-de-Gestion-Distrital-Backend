@@ -122,6 +122,7 @@ class NoteController extends Controller
 
         $notas = $query->with([
                 'user:id,name',
+                'replies.user:id,name',
                 'program:id,titulo,rama_id,grupo_id',
                 'program.rama:id,nombre',
                 'program.grupo:id,nombre',

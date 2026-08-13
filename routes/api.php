@@ -25,11 +25,14 @@ Route::get('/activity-logs', [ActivityLogController::class, 'index']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+    Route::post('/me/foto-perfil', [AuthController::class, 'updateFotoPerfil']);
+    Route::delete('/me/foto-perfil', [AuthController::class, 'deleteFotoPerfil']);
 
     //Programas
     Route::get('/comentarios-pendientes', [NoteController::class, 'pendientes']);
     Route::apiResource('programas', ProgramController::class);
     Route::patch('programas/{program}/estado', [ProgramController::class, 'updateStatus']); // <-- faltaba esta
+    Route::patch('programas/{program}/solicitar-aprobacion', [ProgramController::class, 'solicitarAprobacion']);
     Route::get('programas/{program}/notas', [NoteController::class, 'index']);
     Route::post('programas/{program}/notas', [NoteController::class, 'store']);
     Route::patch('programas/{program}/notas/{note}/resolucion', [NoteController::class, 'toggleResolucion']);

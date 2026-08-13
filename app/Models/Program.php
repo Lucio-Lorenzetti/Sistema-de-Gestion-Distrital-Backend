@@ -23,6 +23,7 @@ class Program extends Model
         'cronograma',
         'anexos',
         'estado',
+        'aprobacion_solicitada_at',
     ];
 
     protected $casts = [
@@ -30,6 +31,7 @@ class Program extends Model
         'anexos' => 'array',
         'fecha_inicio' => 'date:Y-m-d',
         'fecha_fin' => 'date:Y-m-d',
+        'aprobacion_solicitada_at' => 'datetime',
     ];
 
     // Relaciones
