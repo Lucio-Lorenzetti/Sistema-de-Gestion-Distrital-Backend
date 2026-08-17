@@ -63,6 +63,17 @@
         <div class="bloque">{{ $program->objetivos }}</div>
     @endif
 
+    @if($program->lugar || $program->valor || $program->transporte)
+        <h2>Información Adicional</h2>
+        <table class="meta-row meta-row-3">
+            <tr>
+                <td><strong>Lugar:</strong> {{ $program->lugar ?? '—' }}</td>
+                <td><strong>Valor:</strong> {{ $program->valor ?? '—' }}</td>
+                <td><strong>Transporte:</strong> {{ $program->transporte ?? '—' }}</td>
+            </tr>
+        </table>
+    @endif
+
     <h2>Cronograma</h2>
 
     @if(isset($cronograma['contenidoHtml']))

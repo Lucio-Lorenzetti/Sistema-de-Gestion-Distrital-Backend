@@ -30,7 +30,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     //Programas
     Route::get('/comentarios-pendientes', [NoteController::class, 'pendientes']);
+    // Antes del apiResource: si no, GET /programas/{program} la intercepta y "papelera" 404 como id inválido.
+    Route::get('programas/papelera', [ProgramController::class, 'papelera']);
     Route::apiResource('programas', ProgramController::class);
+    Route::patch('programas/{id}/restore', [ProgramController::class, 'restore']);
     Route::patch('programas/{program}/estado', [ProgramController::class, 'updateStatus']); // <-- faltaba esta
     Route::patch('programas/{program}/solicitar-aprobacion', [ProgramController::class, 'solicitarAprobacion']);
     Route::get('programas/{program}/notas', [NoteController::class, 'index']);

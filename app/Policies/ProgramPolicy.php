@@ -134,6 +134,15 @@ class ProgramPolicy
     }
 
     /**
+     * ¿Puede restaurar este programa desde la papelera? Mismo criterio que delete():
+     * solo quien puede borrarlo puede traerlo de vuelta.
+     */
+    public function restore(User $user, Program $program): bool
+    {
+        return $program->owner_id === $user->id;
+    }
+
+    /**
      * El autor de un programa, y cualquier educador de la misma rama+grupo, tienen
      * exactamente las mismas capacidades sobre él — es trabajo colaborativo del
      * grupo, no algo personal de quien lo creó. A diferencia de update(), esto NO
@@ -153,6 +162,9 @@ class ProgramPolicy
      *   (autor, o cualquier educador del mismo grupo+rama mientras está en borrador).
      * - enviado → borrador ("Volver a borrador"): autor, o cualquier educador del
      *   mismo grupo+rama.
+     * - rechazado → borrador ("Volver a borrador" tras un rechazo): mismo criterio
+     *   que enviado → borrador. Sin esto un programa rechazado queda trabado para
+     *   siempre — el autor podía editar su contenido pero nunca reenviarlo.
      * - enviado → aprobado/rechazado ("Aprobar"/"Rechazar"): Aux Prog General
      *   (cualquiera) o Aux Prog Rama (solo los de su rama) — mismo alcance que comment().
      * Cualquier otra combinación (saltos de estado, mismo estado, etc.) queda afuera.
@@ -163,7 +175,7 @@ class ProgramPolicy
             return $this->update($user, $program);
         }
 
-        if ($program->estado === 'enviado' && $nuevoEstado === 'borrador') {
+        if (in_array($program->estado, ['enviado', 'rechazado'], true) && $nuevoEstado === 'borrador') {
             return $this->esColaborador($user, $program);
         }
 

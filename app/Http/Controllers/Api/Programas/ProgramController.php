@@ -17,6 +17,8 @@ class ProgramController extends Controller
      */
     public function index(Request $request)
     {
+        Gate::authorize('viewAny', Program::class);
+
         $user = Auth::user();
 
         $roleNames = $user->roles->pluck('nombre')
@@ -47,17 +49,24 @@ class ProgramController extends Controller
      */
     public function store(Request $request)
     {
+        Gate::authorize('create', Program::class);
+
         $validated = $request->validate([
             'titulo'            => 'required|string|max:255',
-            'diagnostico'       => 'nullable|string',
-            'objetivos'         => 'nullable|string',
-            'educadoresACargo'  => 'nullable|string',
-            'tipo'              => 'nullable|string',
-            'fechaInicio'       => 'nullable|date',
-            'fechaFin'          => 'nullable|date|after_or_equal:fechaInicio',
+            // El frontend (CrearPrograma.jsx) ya los pide required en el form; alineado
+            // acá para que un POST directo a la API no pueda crear un programa incompleto.
+            'diagnostico'       => 'required|string',
+            'objetivos'         => 'required|string',
+            'educadoresACargo'  => 'required|string',
+            'tipo'              => 'nullable|string|in:cuatrimestre,campamento,cfa',
+            'fechaInicio'       => 'required|date',
+            'fechaFin'          => 'required|date|after_or_equal:fechaInicio',
             'dias'              => 'nullable|array',   // CFA: array de días
             'contenidoHtml'     => 'nullable|string',  // Campamento / Cuatrimestre: HTML único
             'anexos'            => 'nullable|array',
+            'lugar'             => 'nullable|string|max:255',   // Solo Campamento/CFA
+            'valor'             => 'nullable|string|max:255',
+            'transporte'        => 'nullable|string|max:255',
         ]);
 
         $user = Auth::user();
@@ -73,6 +82,9 @@ class ProgramController extends Controller
             'fecha_fin'           => $validated['fechaFin'] ?? null,
             'cronograma'          => $validated['dias'] ?? (isset($validated['contenidoHtml']) ? ['contenidoHtml' => $validated['contenidoHtml']] : []),
             'anexos'              => $validated['anexos'] ?? [],
+            'lugar'               => $validated['lugar'] ?? null,
+            'valor'               => $validated['valor'] ?? null,
+            'transporte'          => $validated['transporte'] ?? null,
             'owner_id'            => $user->id,
             'grupo_id'            => $user->grupo_id,
             'estado'              => 'borrador',
@@ -110,6 +122,7 @@ class ProgramController extends Controller
         if (isset($cronograma['contenidoHtml'])) {
             [$cronograma['contenidoHtml'], $disclaimer] = $this->extraerAyudaHtml($cronograma['contenidoHtml']);
             $cronograma['contenidoHtml'] = $this->quitarSeccionesDuplicadas($cronograma['contenidoHtml'], $encabezadosDuplicados);
+            $cronograma['contenidoHtml'] = $this->sanearHtml($cronograma['contenidoHtml']);
         } elseif (isset($cronograma['contenido'])) {
             [$cronograma['contenido'], $disclaimer] = $this->extraerAyudaTexto($cronograma['contenido']);
         } elseif (is_array($cronograma)) {
@@ -122,7 +135,8 @@ class ProgramController extends Controller
                 }
 
                 [$html, $ayudaDia] = $this->extraerAyudaHtmlDia($dia['contenidoHtml']);
-                $cronograma[$i]['contenidoHtml'] = $this->quitarSeccionesDuplicadas($html, $encabezadosDuplicados);
+                $html = $this->quitarSeccionesDuplicadas($html, $encabezadosDuplicados);
+                $cronograma[$i]['contenidoHtml'] = $this->sanearHtml($html);
                 $disclaimer ??= $ayudaDia;
             }
         }
@@ -216,6 +230,59 @@ class ProgramController extends Controller
     }
 
     /**
+     * El HTML de contenidoHtml lo escribe el educador vía contentEditable en el
+     * front. Se muestra en el navegador ya saneado (programaLineas.js), pero el
+     * PDF lo inyectaba tal cual sin ese paso — mismo criterio acá: sacar <script>,
+     * handlers inline (on*) y href/src con "javascript:".
+     */
+    private function sanearHtml(?string $html): string
+    {
+        $html = $html ?? '';
+        if (trim($html) === '') {
+            return $html;
+        }
+
+        libxml_use_internal_errors(true);
+        $dom = new \DOMDocument();
+        $dom->loadHTML('<?xml encoding="utf-8" ?><body>' . $html . '</body>', LIBXML_NOERROR | LIBXML_NOWARNING);
+        libxml_clear_errors();
+
+        $body = $dom->getElementsByTagName('body')->item(0);
+        if (!$body) {
+            return $html;
+        }
+
+        foreach (iterator_to_array($dom->getElementsByTagName('script')) as $script) {
+            $script->parentNode?->removeChild($script);
+        }
+
+        $xpath = new \DOMXPath($dom);
+        foreach (iterator_to_array($xpath->query('//*')) as $el) {
+            if (!$el instanceof \DOMElement) {
+                continue;
+            }
+
+            foreach (iterator_to_array($el->attributes ?? []) as $attr) {
+                $nombre = strtolower($attr->name);
+                $valor = strtolower(trim($attr->value));
+                $esHandler = str_starts_with($nombre, 'on');
+                $esUrlPeligrosa = in_array($nombre, ['href', 'src'], true) && str_starts_with($valor, 'javascript:');
+
+                if ($esHandler || $esUrlPeligrosa) {
+                    $el->removeAttribute($attr->name);
+                }
+            }
+        }
+
+        $resultado = '';
+        foreach (iterator_to_array($body->childNodes) as $child) {
+            $resultado .= $dom->saveHTML($child);
+        }
+
+        return $resultado;
+    }
+
+    /**
      * Actualizar un programa existente.
      */
     public function update(Request $request, $id)
@@ -230,16 +297,25 @@ class ProgramController extends Controller
 
         $validated = $request->validate([
             'titulo'            => 'sometimes|required|string|max:255',
-            'diagnostico'       => 'nullable|string',
-            'objetivos'         => 'nullable|string',
-            'educadoresACargo'  => 'nullable|string',
-            'tipo'              => 'nullable|string',
-            'fechaInicio'       => 'nullable|date',
-            'fechaFin'          => 'nullable|date|after_or_equal:fechaInicio',
+            // "sometimes" porque un PUT puede mandar solo un subconjunto de campos;
+            // pero si vienen, no pueden venir vacíos (mismo criterio que store()).
+            'diagnostico'       => 'sometimes|required|string',
+            'objetivos'         => 'sometimes|required|string',
+            'educadoresACargo'  => 'sometimes|required|string',
+            'tipo'              => 'nullable|string|in:cuatrimestre,campamento,cfa',
+            'fechaInicio'       => 'sometimes|required|date',
+            'fechaFin'          => 'sometimes|required|date|after_or_equal:fechaInicio',
             'dias'              => 'nullable|array',
             'contenidoHtml'     => 'nullable|string',
             'anexos'            => 'nullable|array',
-            'estado'            => 'nullable|in:borrador,enviado,aprobado,rechazado',
+            'lugar'             => 'nullable|string|max:255',
+            'valor'             => 'nullable|string|max:255',
+            'transporte'        => 'nullable|string|max:255',
+            // "estado" NO se acepta acá a propósito: cambiar de estado tiene su propia
+            // autorización por transición (Gate::authorize('updateStatus'/'solicitarAprobacion')),
+            // que es más estricta que la de "editar contenido" de este endpoint. Si se
+            // aceptara aquí, cualquiera con permiso de edición podría autoaprobarse
+            // saltando el flujo de revisión. Usar PATCH /estado o /solicitar-aprobacion.
         ]);
 
         $updateData = [];
@@ -254,7 +330,9 @@ class ProgramController extends Controller
         if (array_key_exists('dias', $validated))               $updateData['cronograma'] = $validated['dias'];
         elseif (array_key_exists('contenidoHtml', $validated))  $updateData['cronograma'] = ['contenidoHtml' => $validated['contenidoHtml']];
         if (array_key_exists('anexos', $validated))             $updateData['anexos'] = $validated['anexos'];
-        if (array_key_exists('estado', $validated))             $updateData['estado'] = $validated['estado'];
+        if (array_key_exists('lugar', $validated))              $updateData['lugar'] = $validated['lugar'];
+        if (array_key_exists('valor', $validated))              $updateData['valor'] = $validated['valor'];
+        if (array_key_exists('transporte', $validated))         $updateData['transporte'] = $validated['transporte'];
 
         $program->update($updateData);
 
@@ -273,21 +351,28 @@ class ProgramController extends Controller
 
         $validated = $request->validate([
             'estado' => 'required|in:borrador,enviado,aprobado,rechazado',
+            // El motivo es obligatorio únicamente al rechazar — es el sentido del
+            // feature: antes se podía rechazar sin dejar ningún registro de por qué.
+            'motivo' => 'required_if:estado,rechazado|nullable|string|max:2000',
         ]);
 
         Gate::authorize('updateStatus', [$program, $validated['estado']]);
 
         // Cualquier cambio de estado invalida un pedido de aprobación anterior:
         // volvió a borrador (hay que reenviarlo), o ya se resolvió (aprobado/rechazado).
+        // El motivo de un rechazo anterior tampoco sobrevive a un cambio de estado
+        // posterior (reenviado, aprobado, etc.): dejaría de corresponder al estado actual.
         $program->update([
             'estado' => $validated['estado'],
+            'motivo_rechazo' => $validated['estado'] === 'rechazado' ? $validated['motivo'] : null,
             'aprobacion_solicitada_at' => null,
         ]);
 
         match ($validated['estado']) {
-            'enviado'  => ActivityLogger::log('programa_enviado', 'Se envió un programa a revisión', $program->titulo),
-            'aprobado' => ActivityLogger::log('programa_aprobado', 'Se aprobó un programa', $program->titulo),
-            default    => null,
+            'enviado'   => ActivityLogger::log('programa_enviado', 'Se envió un programa a revisión', $program->titulo),
+            'aprobado'  => ActivityLogger::log('programa_aprobado', 'Se aprobó un programa', $program->titulo),
+            'rechazado' => ActivityLogger::log('programa_rechazado', 'Se rechazó un programa', $program->titulo),
+            default     => null,
         };
 
         return response()->json([
@@ -324,10 +409,46 @@ class ProgramController extends Controller
     public function destroy($id)
     {
         $program = Program::findOrFail($id);
+
+        Gate::authorize('delete', $program);
+
         $program->delete();
 
         return response()->json([
             'message' => 'Programa eliminado correctamente'
+        ], 200);
+    }
+
+    /**
+     * Listado de programas en la papelera. Mismo alcance que delete()/restore():
+     * cada usuario ve únicamente los que él mismo eliminó.
+     */
+    public function papelera()
+    {
+        $user = Auth::user();
+
+        $programs = Program::onlyTrashed()
+            ->where('owner_id', $user->id)
+            ->with(['rama', 'grupo'])
+            ->orderBy('deleted_at', 'desc')
+            ->get();
+
+        return response()->json($programs, 200);
+    }
+
+    /**
+     * Restaurar un programa eliminado.
+     */
+    public function restore($id)
+    {
+        $program = Program::onlyTrashed()->findOrFail($id);
+
+        Gate::authorize('restore', $program);
+
+        $program->restore();
+
+        return response()->json([
+            'message' => 'Programa restaurado correctamente'
         ], 200);
     }
 }

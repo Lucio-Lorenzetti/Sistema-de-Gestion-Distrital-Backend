@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Program extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'titulo',
@@ -23,7 +24,11 @@ class Program extends Model
         'cronograma',
         'anexos',
         'estado',
+        'motivo_rechazo',
         'aprobacion_solicitada_at',
+        'lugar',
+        'valor',
+        'transporte',
     ];
 
     protected $casts = [
