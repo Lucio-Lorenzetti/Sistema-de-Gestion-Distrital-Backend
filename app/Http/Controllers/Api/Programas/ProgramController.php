@@ -25,14 +25,16 @@ class ProgramController extends Controller
             ->map(fn ($nombre) => strtolower($nombre))
             ->toArray();
 
-        $query = Program::with(['rama', 'grupo', 'owner:id,name,email']);
+        $query = Program::with(['rama', 'grupo', 'owner:id,name,email,totem']);
 
         if (in_array('director', $roleNames) || in_array('aux prog general', $roleNames)) {
             // Director y Aux Prog General ven TODOS los programas del distrito, sin filtro.
         } elseif (in_array('aux prog rama', $roleNames)) {
-            $query->where('rama_id', $user->rama_id);
+            // Scope real de la asignación de Aux Prog Rama (no user->rama_id, que
+            // es el caché de Educador y puede no coincidir si la persona tiene ambos).
+            $query->where('rama_id', $user->roleScope('Aux Prog Rama')?->rama_id);
         } elseif (in_array('jefe de grupo', $roleNames)) {
-            $query->where('grupo_id', $user->grupo_id);
+            $query->where('grupo_id', $user->roleScope('Jefe de Grupo')?->grupo_id);
         } else {
             // Educador (default): su rama + su grupo → incluye los suyos y los de sus pares.
             $query->where('grupo_id', $user->grupo_id)
@@ -103,7 +105,7 @@ class ProgramController extends Controller
      */
     public function show($id)
     {
-        $program = Program::with(['rama', 'owner:id,name,email', 'grupo'])->findOrFail($id);
+        $program = Program::with(['rama', 'owner:id,name,email,totem', 'grupo'])->findOrFail($id);
 
         Gate::authorize('view', $program);
 
@@ -112,7 +114,7 @@ class ProgramController extends Controller
 
     public function pdf($id)
     {
-        $program = Program::with(['rama', 'grupo', 'owner:id,name,email'])->findOrFail($id);
+        $program = Program::with(['rama', 'grupo', 'owner:id,name,email,totem'])->findOrFail($id);
 
         $cronograma = $program->cronograma ?? [];
         $disclaimer = null;

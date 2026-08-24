@@ -20,7 +20,7 @@ class NoteController extends Controller
 
         return response()->json(
             $program->notes()
-                ->with(['user:id,name', 'replies.user:id,name'])
+                ->with(['user:id,name,totem', 'replies.user:id,name,totem'])
                 ->get()
         );
     }
@@ -66,7 +66,7 @@ class NoteController extends Controller
             'resuelta'   => false,
         ]);
 
-        return response()->json($note->load('user:id,name'), 201);
+        return response()->json($note->load('user:id,name,totem'), 201);
     }
 
     /**
@@ -92,7 +92,7 @@ class NoteController extends Controller
 
         $note->update(['resuelta' => $validated['resuelta']]);
 
-        return response()->json($note->load('user:id,name'));
+        return response()->json($note->load('user:id,name,totem'));
     }
 
     /**
@@ -117,12 +117,17 @@ class NoteController extends Controller
             ->whereHas('program', fn ($q) => $q->where('estado', 'enviado'));
 
         if (!in_array('aux prog general', $roleNames)) {
-            $query->whereHas('program', fn ($q) => $q->where('rama_id', $user->rama_id));
+            // Aux Prog Rama: scope real de esa asignación (no user->rama_id, que es
+            // el caché de Educador). Educador (default): sí usa el caché.
+            $ramaId = in_array('aux prog rama', $roleNames)
+                ? $user->roleScope('Aux Prog Rama')?->rama_id
+                : $user->rama_id;
+            $query->whereHas('program', fn ($q) => $q->where('rama_id', $ramaId));
         }
 
         $notas = $query->with([
-                'user:id,name',
-                'replies.user:id,name',
+                'user:id,name,totem',
+                'replies.user:id,name,totem',
                 'program:id,titulo,rama_id,grupo_id',
                 'program.rama:id,nombre',
                 'program.grupo:id,nombre',

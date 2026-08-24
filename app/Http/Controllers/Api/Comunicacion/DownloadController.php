@@ -12,7 +12,7 @@ class DownloadController extends Controller
 {
     public function index()
     {
-        return response()->json(Download::with('user:id,name')->latest()->get());
+        return response()->json(Download::with('user:id,name,totem')->latest()->get());
     }
 
     public function store(Request $request)
@@ -47,7 +47,7 @@ class DownloadController extends Controller
         ActivityLogger::log('download_creado', 'Se creó un nuevo download', $download->nombre);
 
 
-        return response()->json($download->load('user:id,name'), 201);
+        return response()->json($download->load('user:id,name,totem'), 201);
     }
 
     public function destroy(Download $download)

@@ -8,7 +8,7 @@ class ActivityLogController extends Controller
 {
     public function index()
     {
-        return ActivityLog::with('user:id,name')
+        return ActivityLog::with('user:id,name,totem')
             ->orderByDesc('created_at')
             ->limit(30)
             ->get()
@@ -16,8 +16,8 @@ class ActivityLogController extends Controller
                 'id' => $log->id,
                 'titulo' => $log->titulo,
                 'desc' => $log->descripcion
-                    ? "{$log->user?->name} · {$log->descripcion}"
-                    : ($log->user?->name ?? 'Sistema'),
+                    ? "{$log->user?->nombre_visible} · {$log->descripcion}"
+                    : ($log->user?->nombre_visible ?? 'Sistema'),
                 'time' => $log->created_at->diffForHumans(),
             ]);
     }

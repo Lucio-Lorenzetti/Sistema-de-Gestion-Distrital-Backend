@@ -3,9 +3,14 @@
 namespace App\Http\Controllers\Auth;
 
 use Illuminate\Http\Request;
+use App\Models\Grupo;
+use App\Models\Rama;
+use App\Models\Role;
 use App\Models\User;
 use App\Http\Controllers\Controller;
+use App\Services\RoleRequestService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Storage;
@@ -13,6 +18,43 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    /**
+     * Alta self-service: crea la cuenta (inactiva) + la solicitud del primer
+     * rol, en un solo paso — para que aprobar sea una sola acción (activar +
+     * asignar rol) del lado de quien administra.
+     */
+    public function register(Request $request, RoleRequestService $service)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+            'password' => 'required|min:8|confirmed',
+            'role_id' => 'required|exists:roles,id',
+            'rama_id' => 'nullable|exists:ramas,id',
+            'grupo_id' => 'nullable|exists:grupos,id',
+        ]);
+
+        $role = Role::findOrFail($validated['role_id']);
+        $rama = isset($validated['rama_id']) ? Rama::find($validated['rama_id']) : null;
+        $grupo = isset($validated['grupo_id']) ? Grupo::find($validated['grupo_id']) : null;
+
+        $solicitud = DB::transaction(function () use ($validated, $role, $rama, $grupo, $service) {
+            $user = User::create([
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => Hash::make($validated['password']),
+                'activo' => false,
+            ]);
+
+            return $service->crearSolicitud($user, $role, $rama, $grupo);
+        });
+
+        return response()->json([
+            'message' => 'Cuenta creada. Tu solicitud de rol quedó pendiente de aprobación.',
+            'solicitud' => $solicitud,
+        ], 201);
+    }
+
     public function login(Request $request)
     {
         $request->validate([
@@ -28,6 +70,12 @@ class AuthController extends Controller
             ]);
         }
 
+        if (! $user->activo) {
+            throw ValidationException::withMessages([
+                'email' => ['Tu cuenta está pendiente de aprobación.'],
+            ]);
+        }
+
         // Cargamos relaciones requeridas por la interfaz del frontend
         $user->load(['roles', 'grupo', 'rama']);
 
@@ -37,7 +85,6 @@ class AuthController extends Controller
         return response()->json([
             'user' => $user,
             'token' => $token,
-            'must_change_password' => (bool) $user->must_change_password, 
             'has_multiple_roles' => $user->roles->count() > 1,
             'status' => 'success'
         ]);
@@ -50,45 +97,86 @@ class AuthController extends Controller
 
         return response()->json([
             'user' => $user,
-            'must_change_password' => (bool) $user->must_change_password,
             'has_multiple_roles' => $user->roles->count() > 1,
         ]);
     }
 
-    // 3. Selección de Función: Validar que el rol/grupo elegido sea válido
-    public function seleccionarFuncion(Request $request)
-    {
-        $request->validate([
-            'role_id' => 'required|exists:roles,id',
-            'grupo_id' => 'required|exists:grupos,id', // 🛠️ CORREGIDO: de 'groups' a 'grupos'
-        ]);
-
-        $user = auth()->user();
-
-        // Validamos que el usuario realmente tenga ese rol asignado en la tabla intermedia
-        if (!$user->roles->contains($request->role_id)) {
-            return response()->json(['message' => 'Función no autorizada.'], 403);
-        }
-
-        return response()->json(['message' => 'Función seleccionada correctamente.']);
-    }
-
-    // 4. Flujo de Recuperación (Simplificado para API)
+    /**
+     * Recuperación de contraseña self-service — nadie más puede conocer ni
+     * fijar la contraseña de otro usuario, ni Director ni Developer. Respuesta
+     * siempre genérica (no filtra si el mail existe o no).
+     */
     public function forgotPassword(Request $request)
     {
         $request->validate(['email' => 'required|email']);
-        return response()->json(['message' => 'Si el correo existe, se ha enviado un link.']);
+
+        Password::sendResetLink($request->only('email'));
+
+        return response()->json(['message' => 'Si el correo existe, se envió un link para restablecer la contraseña.']);
     }
 
     public function resetPassword(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'token' => 'required',
             'email' => 'required|email',
-            'password' => 'required|min:8|confirmed|regex:/[A-Z]/', 
+            'password' => 'required|min:8|confirmed',
         ]);
 
+        $status = Password::reset($validated, function (User $user, string $password) {
+            $user->forceFill([
+                'password' => Hash::make($password),
+            ])->save();
+        });
+
+        if ($status !== Password::PASSWORD_RESET) {
+            throw ValidationException::withMessages([
+                'email' => [__($status)],
+            ]);
+        }
+
         return response()->json(['message' => 'Contraseña actualizada con éxito.']);
+    }
+
+    /**
+     * Perfil propio: nombre y mail (la contraseña tiene su propio endpoint,
+     * la foto ya tenía el suyo).
+     */
+    public function updatePerfil(Request $request)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'totem' => 'nullable|string|max:100',
+            'email' => 'required|email|unique:users,email,' . $user->id,
+        ]);
+
+        $user->update($validated);
+
+        return response()->json($user->load(['roles', 'grupo', 'rama']));
+    }
+
+    public function updatePassword(Request $request)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'current_password' => 'required',
+            'password' => 'required|min:8|confirmed',
+        ]);
+
+        if (! Hash::check($validated['current_password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'current_password' => ['La contraseña actual no es correcta.'],
+            ]);
+        }
+
+        $user->forceFill([
+            'password' => Hash::make($validated['password']),
+        ])->save();
+
+        return response()->json(['message' => 'Contraseña actualizada correctamente']);
     }
 
     /**

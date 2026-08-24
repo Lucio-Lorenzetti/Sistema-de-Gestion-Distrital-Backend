@@ -25,7 +25,6 @@ class UserSeeder extends Seeder
                 'name' => 'Lucio Lorenzetti',
                 'password' => $passwordFija,
                 'activo' => true,
-                'must_change_password' => false,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]
@@ -43,13 +42,20 @@ class UserSeeder extends Seeder
             $director->roles()->syncWithoutDetaching([$rolDirector->id]);
         }
 
+        // El primer Developer se asigna a mano, acá — es la cuenta real del
+        // dueño del sistema, no un flujo de auto-elevación. En un entorno
+        // real, esta línea es la que hay que revisar/quitar si corresponde.
+        $rolDeveloper = Role::where('nombre', 'Developer')->first();
+        if ($rolDeveloper) {
+            $director->roles()->syncWithoutDetaching([$rolDeveloper->id]);
+        }
+
         // 4. Creamos el resto de usuarios
         $auxGeneral = User::create([
             'name' => 'Mariano Costa',
             'email' => 'aux.general@gmail.com',
             'password' => $passwordFija,
             'activo' => true,
-            'must_change_password' => false,
         ]);
         $auxGeneral->roles()->attach(Role::where('nombre', 'Aux Prog General')->first());
 
@@ -72,7 +78,6 @@ class UserSeeder extends Seeder
                 'email' => $emailAux,
                 'password' => $passwordFija,
                 'activo' => true,
-                'must_change_password' => false,
                 'rama_id' => $rama ? $rama->id : null,
             ]);
             $auxRama->roles()->attach(Role::where('nombre', 'Aux Prog Rama')->first());
@@ -84,7 +89,6 @@ class UserSeeder extends Seeder
             'email' => 'aux.comunicacion@gmail.com',
             'password' => $passwordFija,
             'activo' => true,
-            'must_change_password' => false,
         ]);
         $auxCom->roles()->attach(Role::where('nombre', 'Aux Comunicación')->first());
 
@@ -94,7 +98,6 @@ class UserSeeder extends Seeder
             'email' => 'jefe.grupo@gmail.com',
             'password' => $passwordFija,
             'activo' => true,
-            'must_change_password' => false,
             'grupo_id' => $grupoPrueba,
         ]);
         $jefe->roles()->attach(Role::whereIn('nombre', ['Jefe de Grupo', 'Educador'])->get());
@@ -105,7 +108,6 @@ class UserSeeder extends Seeder
             'email' => 'educador@gmail.com',
             'password' => $passwordFija,
             'activo' => true,
-            'must_change_password' => true,
             'grupo_id' => $grupoPrueba,
         ]);
         $educador->roles()->attach(Role::where('nombre', 'Educador')->first());

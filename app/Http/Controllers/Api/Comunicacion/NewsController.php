@@ -16,7 +16,7 @@ class NewsController extends Controller
 
             ->update(['estado' => 'Publicada']);
 
-        $query = News::with('autor:id,name')->latest();
+        $query = News::with('autor:id,name,totem')->latest();
 
         if ($request->has('estado') && $request->estado !== 'Todas') {
             $query->where('estado', $request->estado);
@@ -35,7 +35,7 @@ class NewsController extends Controller
     {
         $news->increment('visitas');
 
-        return response()->json($this->formatNoticia($news->load('autor:id,name')));
+        return response()->json($this->formatNoticia($news->load('autor:id,name,totem')));
     }
 
     public function store(Request $request)
@@ -75,7 +75,7 @@ class NewsController extends Controller
 
         ActivityLogger::log('noticia_creada', 'Se creó una nueva noticia', $news->titulo);        
 
-        return response()->json($this->formatNoticia($news->load('autor:id,name')), 201);
+        return response()->json($this->formatNoticia($news->load('autor:id,name,totem')), 201);
     }
 
     public function update(Request $request, News $news)
@@ -111,7 +111,7 @@ class NewsController extends Controller
         
         ActivityLogger::log('noticia_actualizada', 'Se actualizó una noticia', $news->titulo);
 
-        return response()->json($this->formatNoticia($news->load('autor:id,name')));
+        return response()->json($this->formatNoticia($news->load('autor:id,name,totem')));
     }
 
     public function destroy(News $news)
@@ -137,7 +137,7 @@ class NewsController extends Controller
             'categoria' => $noticia->categoria,
             'imagen' => $noticia->imagen ? asset('storage/' . $noticia->imagen) : null,
             'visitas' => $noticia->visitas,
-            'autor' => $noticia->autor?->name ?? 'Sin asignar',
+            'autor' => $noticia->autor?->nombre_visible ?? 'Sin asignar',
             'fecha' => $noticia->publicado_at?->format('d/m/Y') ?? 'No programada',
             'fecha_iso' => $noticia->publicado_at?->toIso8601String(),
         ];

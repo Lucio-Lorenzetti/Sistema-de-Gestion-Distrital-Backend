@@ -3,6 +3,11 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Api\Gestion\GrupoController;
+use App\Http\Controllers\Api\Gestion\RamaController;
+use App\Http\Controllers\Api\Gestion\RoleController;
+use App\Http\Controllers\Api\Gestion\RoleRequestController;
+use App\Http\Controllers\Api\Gestion\UserController;
+use App\Http\Controllers\Api\Gestion\DesignacionController;
 use App\Http\Controllers\Api\Programas\ProgramController;
 use App\Http\Controllers\Api\Programas\NoteController;
 use App\Http\Controllers\Api\Comunicacion\NewsController;
@@ -12,7 +17,12 @@ use App\Http\Controllers\ActivityLogController;
 
 // Públicas
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/register', [AuthController::class, 'register']);
+Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 Route::get('/grupos', [GrupoController::class, 'index']);
+Route::get('/ramas', [RamaController::class, 'index']);
+Route::get('/roles/solicitables', [RoleController::class, 'solicitables']);
 Route::get('news', [NewsController::class, 'index']);
 Route::get('news/{news}', [NewsController::class, 'show']);
 Route::get('/courses', [CoursesController::class, 'index']);
@@ -27,6 +37,23 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/me/foto-perfil', [AuthController::class, 'updateFotoPerfil']);
     Route::delete('/me/foto-perfil', [AuthController::class, 'deleteFotoPerfil']);
+    Route::put('/me/perfil', [AuthController::class, 'updatePerfil']);
+    Route::put('/me/password', [AuthController::class, 'updatePassword']);
+
+    //Usuarios y roles
+    Route::get('/roles', [RoleController::class, 'index']);
+    Route::post('/roles', [RoleController::class, 'store']);
+    Route::get('/usuarios', [UserController::class, 'index']);
+    Route::get('/usuarios/{user}', [UserController::class, 'show']);
+    Route::delete('/usuarios/{user}', [UserController::class, 'destroy']);
+    Route::post('/usuarios/{user}/roles', [UserController::class, 'assignRole']);
+    Route::delete('/usuarios/{user}/roles/{role}', [UserController::class, 'revokeRole']);
+    Route::get('/solicitudes-rol', [RoleRequestController::class, 'index']);
+    Route::post('/solicitudes-rol', [RoleRequestController::class, 'store']);
+    Route::patch('/solicitudes-rol/{roleRequest}/aprobar', [RoleRequestController::class, 'approve']);
+    Route::patch('/solicitudes-rol/{roleRequest}/rechazar', [RoleRequestController::class, 'reject']);
+    Route::patch('/grupos/{grupo}/jefe-de-grupo', [DesignacionController::class, 'jefeDeGrupo']);
+    Route::patch('/distrito/director', [DesignacionController::class, 'director']);
 
     //Programas
     Route::get('/comentarios-pendientes', [NoteController::class, 'pendientes']);
@@ -55,11 +82,4 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/courses/{course}', [CoursesController::class, 'update']);
     Route::patch('/courses/{course}', [CoursesController::class, 'patch']); // forzar cierre/finalización
     Route::delete('/courses/{course}', [CoursesController::class, 'destroy']);
-});
-
-// 4. Rutas exclusivas de Jerarquía (Director/Administración)
-Route::middleware(['auth:sanctum', 'role:Director'])->group(function () {
-    Route::get('/test-director', function () {
-        return response()->json(['message' => 'Hola Director, vos tenés las llaves del Distrito.']);
-    });
 });

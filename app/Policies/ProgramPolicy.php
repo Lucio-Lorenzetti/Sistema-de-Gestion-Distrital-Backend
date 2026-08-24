@@ -35,11 +35,13 @@ class ProgramPolicy
         }
 
         if ($user->hasRole('Aux Prog Rama')) {
-            return $program->rama_id === $user->rama_id;
+            // Scope real de la asignación de Aux Prog Rama (no user->rama_id, que
+            // es el caché de Educador y puede no coincidir si la persona tiene ambos).
+            return $program->rama_id === $user->roleScope('Aux Prog Rama')?->rama_id;
         }
 
         if ($user->hasRole('Jefe de Grupo')) {
-            return $program->grupo_id === $user->grupo_id;
+            return $program->grupo_id === $user->roleScope('Jefe de Grupo')?->grupo_id;
         }
 
         if ($program->owner_id === $user->id
@@ -114,7 +116,7 @@ class ProgramPolicy
         }
 
         if (in_array('aux prog rama', $roleNames)) {
-            return $program->rama_id === $user->rama_id;
+            return $program->rama_id === $user->roleScope('Aux Prog Rama')?->rama_id;
         }
 
         if (in_array('director', $roleNames) || in_array('jefe de grupo', $roleNames)) {
@@ -185,7 +187,7 @@ class ProgramPolicy
             }
 
             if ($user->hasRole('Aux Prog Rama')) {
-                return $program->rama_id === $user->rama_id;
+                return $program->rama_id === $user->roleScope('Aux Prog Rama')?->rama_id;
             }
 
             return false;

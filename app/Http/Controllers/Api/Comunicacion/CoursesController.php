@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
 class CoursesController extends Controller
@@ -22,10 +23,12 @@ class CoursesController extends Controller
 
     public function store(Request $request)
     {
+        Gate::authorize('create', Course::class);
+
         $validated = $this->validateCourse($request);
 
         $course = Course::create($validated);
-        
+
         ActivityLogger::log('curso_creado', 'Se creó un nuevo curso', $course->titulo);
 
         return response()->json($course, 201);
@@ -33,17 +36,21 @@ class CoursesController extends Controller
 
     public function update(Request $request, Course $course)
     {
+        Gate::authorize('update', $course);
+
         $validated = $this->validateCourse($request);
 
         $course->update($validated);
-        
-        ActivityLogger::log('curso_creado', 'Se creó un nuevo curso', $course->titulo);
+
+        ActivityLogger::log('curso_actualizado', 'Se actualizó un curso', $course->titulo);
 
         return response()->json($course);
     }
 
     public function patch(Request $request, Course $course)
     {
+        Gate::authorize('update', $course);
+
         $validated = $request->validate([
             'fecha_cierre' => ['sometimes', 'date'],
             'fecha_fin' => ['sometimes', 'date'],
@@ -56,8 +63,10 @@ class CoursesController extends Controller
 
     public function destroy(Course $course)
     {
+        Gate::authorize('delete', $course);
+
         $course->delete();
-        
+
         ActivityLogger::log('curso_eliminado', 'Se eliminó un curso', $course->titulo);
 
         return response()->json(['message' => 'Curso eliminado correctamente']);
