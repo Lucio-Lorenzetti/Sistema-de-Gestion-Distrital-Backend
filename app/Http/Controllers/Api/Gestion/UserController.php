@@ -81,6 +81,37 @@ class UserController extends Controller
     }
 
     /**
+     * Papelera de usuarios eliminados — solo Developer (mismo criterio que
+     * delete()/restore()). A diferencia de la papelera de Programas, no está
+     * acotada por "quién lo borró": solo Developer puede borrar/restaurar
+     * usuarios, así que ya ve todo lo que hay.
+     */
+    public function papelera()
+    {
+        Gate::authorize('viewPapelera', User::class);
+
+        $usuarios = User::onlyTrashed()->with('roles')->orderBy('deleted_at', 'desc')->get();
+
+        return response()->json($usuarios);
+    }
+
+    /**
+     * Restaurar un usuario eliminado.
+     */
+    public function restore($id)
+    {
+        $user = User::onlyTrashed()->findOrFail($id);
+
+        Gate::authorize('restore', $user);
+
+        $user->restore();
+
+        ActivityLogger::log('usuario_restaurado', 'Se restauró un usuario eliminado', $user->name);
+
+        return response()->json(['message' => 'Usuario restaurado correctamente']);
+    }
+
+    /**
      * Asignar cualquier rol+scope directo a un usuario, sin pasar por
      * solicitud/designación — solo Developer. NO sobre uno mismo: ni siquiera
      * Developer se salta el flujo normal para asignarse un rol a sí mismo

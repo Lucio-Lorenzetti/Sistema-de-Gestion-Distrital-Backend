@@ -44,6 +44,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/roles', [RoleController::class, 'index']);
     Route::post('/roles', [RoleController::class, 'store']);
     Route::get('/usuarios', [UserController::class, 'index']);
+    // Antes del {user}: si no, GET /usuarios/{user} la intercepta y "papelera" 404 como id inválido.
+    Route::get('/usuarios/papelera', [UserController::class, 'papelera']);
+    Route::patch('/usuarios/{id}/restore', [UserController::class, 'restore']);
     Route::get('/usuarios/{user}', [UserController::class, 'show']);
     Route::delete('/usuarios/{user}', [UserController::class, 'destroy']);
     Route::post('/usuarios/{user}/roles', [UserController::class, 'assignRole']);

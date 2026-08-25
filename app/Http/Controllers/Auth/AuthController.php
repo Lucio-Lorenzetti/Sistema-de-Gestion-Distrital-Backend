@@ -190,12 +190,13 @@ class AuthController extends Controller
         ]);
 
         $user = $request->user();
+        $disco = config('filesystems.uploads_disk');
 
         if ($user->foto_perfil) {
-            Storage::disk('public')->delete($user->foto_perfil);
+            Storage::disk($disco)->delete($user->foto_perfil);
         }
 
-        $user->foto_perfil = $request->file('foto_perfil')->store('avatars', 'public');
+        $user->foto_perfil = $request->file('foto_perfil')->store('avatars', $disco);
         $user->save();
 
         return response()->json([
@@ -212,7 +213,7 @@ class AuthController extends Controller
         $user = $request->user();
 
         if ($user->foto_perfil) {
-            Storage::disk('public')->delete($user->foto_perfil);
+            Storage::disk(config('filesystems.uploads_disk'))->delete($user->foto_perfil);
             $user->foto_perfil = null;
             $user->save();
         }

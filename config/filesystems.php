@@ -17,6 +17,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Disco de archivos subidos por usuarios (avatares, Bibliografía)
+    |--------------------------------------------------------------------------
+    |
+    | Render (plan gratuito) usa disco efímero: cualquier archivo subido al
+    | disco "public" local se pierde en el próximo reinicio del contenedor.
+    | En producción esto apunta a "s3" (Supabase Storage, compatible con la
+    | API de S3 — ver disco "s3" más abajo); en desarrollo local queda en
+    | "public" sin necesitar credenciales de Supabase.
+    |
+    */
+
+    'uploads_disk' => env('UPLOADS_DISK', 'public'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Filesystem Disks
     |--------------------------------------------------------------------------
     |
@@ -47,6 +62,8 @@ return [
             'report' => false,
         ],
 
+        // Supabase Storage habla la misma API que S3 — mismo driver, apuntando
+        // al endpoint S3-compatible del proyecto de Supabase en vez de a AWS.
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),
@@ -56,6 +73,7 @@ return [
             'url' => env('AWS_URL'),
             'endpoint' => env('AWS_ENDPOINT'),
             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
+            'visibility' => 'public',
             'throw' => false,
             'report' => false,
         ],

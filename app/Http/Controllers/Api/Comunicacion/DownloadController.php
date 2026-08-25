@@ -37,7 +37,7 @@ class DownloadController extends Controller
         ];
 
         if ($request->tipo === 'archivo') {
-            $data['archivo_path'] = $request->file('archivo')->store('downloads', 'public');
+            $data['archivo_path'] = $request->file('archivo')->store('downloads', config('filesystems.uploads_disk'));
         } else {
             $data['link'] = $request->link;
         }
@@ -57,7 +57,7 @@ class DownloadController extends Controller
         }
 
         if ($download->archivo_path) {
-            Storage::disk('public')->delete($download->archivo_path);
+            Storage::disk(config('filesystems.uploads_disk'))->delete($download->archivo_path);
         }
 
         $download->delete();
@@ -69,13 +69,15 @@ class DownloadController extends Controller
 
     public function descargar(Download $download)
     {
-        if ($download->tipo !== 'archivo' || !$download->archivo_path || !Storage::disk('public')->exists($download->archivo_path)) {
+        $disco = Storage::disk(config('filesystems.uploads_disk'));
+
+        if ($download->tipo !== 'archivo' || !$download->archivo_path || !$disco->exists($download->archivo_path)) {
             abort(404, 'Archivo no encontrado');
         }
 
         $extension = pathinfo($download->archivo_path, PATHINFO_EXTENSION);
         $nombreDescarga = $download->nombre . '.' . $extension;
 
-        return Storage::disk('public')->download($download->archivo_path, $nombreDescarga);
+        return $disco->download($download->archivo_path, $nombreDescarga);
     }
 }

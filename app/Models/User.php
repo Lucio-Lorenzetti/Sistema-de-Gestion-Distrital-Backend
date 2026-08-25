@@ -38,7 +38,16 @@ class User extends Authenticatable implements CanResetPasswordContract
 
     public function getFotoPerfilUrlAttribute()
     {
-        return $this->foto_perfil ? url(Storage::url($this->foto_perfil)) : null;
+        if (!$this->foto_perfil) {
+            return null;
+        }
+
+        // El disco "s3" (Supabase Storage) ya devuelve una URL absoluta;
+        // el disco local "public" devuelve una ruta relativa que hay que
+        // completar con el dominio de la app.
+        $path = Storage::disk(config('filesystems.uploads_disk'))->url($this->foto_perfil);
+
+        return str_starts_with($path, 'http') ? $path : url($path);
     }
 
     /**

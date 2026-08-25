@@ -17,9 +17,9 @@ class UserSeeder extends Seeder
         $passwordFija = Hash::make('12345');
         $grupoPrueba = Grupo::first()?->id;
 
-        // 1. Aseguramos ID 1 para el Director
+        // 1. Aseguramos ID 1 para el Developer (cuenta real del dueño del sistema)
         DB::table('users')->updateOrInsert(
-            ['email' => 'lucioadriell@gmail.com'],
+            ['email' => 'lorenzettilucioadriel@gmail.com'],
             [
                 'id' => 1,
                 'name' => 'Lucio Lorenzetti',
@@ -30,27 +30,38 @@ class UserSeeder extends Seeder
             ]
         );
 
-        // 2. 🔥 RESETEAR LA SECUENCIA DE POSTGRES A 2 🔥
+        // 2. Aseguramos ID 2 para el Director de Distrito (persona distinta al Developer)
+        DB::table('users')->updateOrInsert(
+            ['email' => 'z13d3.director@scouts.org'],
+            [
+                'id' => 2,
+                'name' => 'Director de Distrito',
+                'password' => $passwordFija,
+                'activo' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        );
+
+        // 3. 🔥 RESETEAR LA SECUENCIA DE POSTGRES A 3 🔥
         if (config('database.default') === 'pgsql') {
-            DB::statement("SELECT setval(pg_get_serial_sequence('users', 'id'), 2, true);");
+            DB::statement("SELECT setval(pg_get_serial_sequence('users', 'id'), 3, true);");
         }
 
-        // 3. Ahora sí, asignamos el rol del Director
-        $director = User::find(1);
+        // 4. Asignamos los roles a cada uno
+        $developer = User::find(1);
+        $rolDeveloper = Role::where('nombre', 'Developer')->first();
+        if ($rolDeveloper) {
+            $developer->roles()->syncWithoutDetaching([$rolDeveloper->id]);
+        }
+
+        $director = User::find(2);
         $rolDirector = Role::where('nombre', 'Director')->first();
         if ($rolDirector) {
             $director->roles()->syncWithoutDetaching([$rolDirector->id]);
         }
 
-        // El primer Developer se asigna a mano, acá — es la cuenta real del
-        // dueño del sistema, no un flujo de auto-elevación. En un entorno
-        // real, esta línea es la que hay que revisar/quitar si corresponde.
-        $rolDeveloper = Role::where('nombre', 'Developer')->first();
-        if ($rolDeveloper) {
-            $director->roles()->syncWithoutDetaching([$rolDeveloper->id]);
-        }
-
-        // 4. Creamos el resto de usuarios
+        // 5. Creamos el resto de usuarios
         $auxGeneral = User::create([
             'name' => 'Mariano Costa',
             'email' => 'aux.general@gmail.com',
@@ -83,7 +94,7 @@ class UserSeeder extends Seeder
             $auxRama->roles()->attach(Role::where('nombre', 'Aux Prog Rama')->first());
         }
 
-        // 8. Auxiliar de Comunicación
+        // 9. Auxiliar de Comunicación
         $auxCom = User::create([
             'name' => 'Sofía Medina',
             'email' => 'aux.comunicacion@gmail.com',
@@ -92,7 +103,7 @@ class UserSeeder extends Seeder
         ]);
         $auxCom->roles()->attach(Role::where('nombre', 'Aux Comunicación')->first());
 
-        // 9. Jefe de Grupo (de prueba)
+        // 10. Jefe de Grupo (de prueba)
         $jefe = User::create([
             'name' => 'Jefe de Grupo Pompeya',
             'email' => 'jefe.grupo@gmail.com',
@@ -102,7 +113,7 @@ class UserSeeder extends Seeder
         ]);
         $jefe->roles()->attach(Role::whereIn('nombre', ['Jefe de Grupo', 'Educador'])->get());
 
-        // 10. Educador (de prueba)
+        // 11. Educador (de prueba)
         $educador = User::create([
             'name' => 'Educador de Prueba',
             'email' => 'educador@gmail.com',

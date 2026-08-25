@@ -44,6 +44,22 @@ class UserPolicy
     }
 
     /**
+     * Mismo criterio que delete(): nadie por policy, solo Developer vía Gate::before.
+     */
+    public function restore(User $actor, User $target): bool
+    {
+        return false;
+    }
+
+    /**
+     * Ver la papelera de usuarios (listado, sin un target puntual) — solo Developer.
+     */
+    public function viewPapelera(User $actor): bool
+    {
+        return false;
+    }
+
+    /**
      * Asignar/quitar cualquier rol sin pasar por solicitud/designación — solo Developer.
      */
     public function assignRoleFreely(User $actor): bool
