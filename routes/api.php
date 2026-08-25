@@ -15,6 +15,22 @@ use App\Http\Controllers\Api\Comunicacion\DownloadController;
 use App\Http\Controllers\Api\Comunicacion\CoursesController;
 use App\Http\Controllers\ActivityLogController;
 
+// TEMPORAL — diagnóstico del disco de uploads en producción, sacar apenas se
+// confirme que UPLOADS_DISK/las credenciales de Supabase llegan bien al server.
+// No expone secretos: solo nombres de config y si las claves están seteadas.
+Route::get('/_diag/storage', function () {
+    return response()->json([
+        'uploads_disk' => config('filesystems.uploads_disk'),
+        's3_bucket' => config('filesystems.disks.s3.bucket'),
+        's3_endpoint' => config('filesystems.disks.s3.endpoint'),
+        's3_region' => config('filesystems.disks.s3.region'),
+        's3_use_path_style' => config('filesystems.disks.s3.use_path_style_endpoint'),
+        's3_key_set' => !empty(config('filesystems.disks.s3.key')),
+        's3_secret_set' => !empty(config('filesystems.disks.s3.secret')),
+        'config_cached' => app()->configurationIsCached(),
+    ]);
+});
+
 // Públicas
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
