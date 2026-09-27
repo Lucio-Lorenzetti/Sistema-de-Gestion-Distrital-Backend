@@ -8,7 +8,9 @@ use App\Models\Rama;
 use App\Models\Role;
 use App\Models\User;
 use App\Http\Controllers\Controller;
+use App\Services\ActivityLogger;
 use App\Services\RoleRequestService;
+use App\Services\UserScopeCache;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -177,6 +179,29 @@ class AuthController extends Controller
         ])->save();
 
         return response()->json(['message' => 'Contraseña actualizada correctamente']);
+    }
+
+    /**
+     * Renunciar a un rol propio — self-service, sin pasar por Developer, y sin
+     * designar reemplazo (a diferencia de DesignacionController, que siempre
+     * traspasa Jefe de Grupo/Director a otra persona en el mismo paso). Nadie
+     * puede renunciar al rol Developer, ni siquiera el propio Developer —
+     * mismo criterio que ya rige para asignarse/sacarse roles a uno mismo en
+     * UserController.
+     */
+    public function renunciarRol(Request $request, Role $role)
+    {
+        $user = $request->user();
+
+        abort_if(strtolower($role->nombre) === 'developer', 403, 'No podés renunciar al rol Developer.');
+        abort_if(!$user->roles->contains('id', $role->id), 404, 'No tenés ese rol asignado.');
+
+        $user->roles()->detach($role->id);
+        UserScopeCache::sync($user);
+
+        ActivityLogger::log('rol_renunciado', 'Un usuario renunció a un rol propio', "{$user->name} → {$role->nombre}");
+
+        return response()->json($user->load(['roles', 'grupo', 'rama']));
     }
 
     /**

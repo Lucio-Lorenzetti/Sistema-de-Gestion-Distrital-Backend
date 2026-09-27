@@ -13,4 +13,12 @@ class RolePolicy
     {
         return false;
     }
+
+    /**
+     * Mismo criterio que create(): solo Developer edita metadata de un rol.
+     */
+    public function update(User $actor): bool
+    {
+        return false;
+    }
 }

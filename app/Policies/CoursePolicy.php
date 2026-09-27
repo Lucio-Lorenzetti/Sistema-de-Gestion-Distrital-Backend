@@ -27,4 +27,17 @@ class CoursePolicy
     {
         return $this->create($user);
     }
+
+    public function restore(User $user, Course $course): bool
+    {
+        return $this->create($user);
+    }
+
+    /**
+     * Ver la papelera (listado, sin un target puntual).
+     */
+    public function viewPapelera(User $user): bool
+    {
+        return $this->create($user);
+    }
 }

@@ -56,15 +56,46 @@ class DownloadController extends Controller
             return response()->json(['message' => 'No autorizado'], 403);
         }
 
-        if ($download->archivo_path) {
-            Storage::disk(config('filesystems.uploads_disk'))->delete($download->archivo_path);
-        }
-
+        // Soft-delete: el archivo físico se conserva (si no, restaurar no
+        // serviría de nada). Solo se borra de verdad si en el futuro se agrega
+        // un "vaciar papelera"/borrado definitivo.
         $download->delete();
-        
+
         ActivityLogger::log('download_eliminado', 'Se eliminó un download', $download->nombre);
 
         return response()->json(['message' => 'Elemento eliminado']);
+    }
+
+    /**
+     * Papelera de Bibliografía eliminada — mismo criterio que destroy():
+     * Director o Aux Comunicación, sin acotar por autor.
+     */
+    public function papelera(Request $request)
+    {
+        if (!$request->user()->hasAnyRole(['Director', 'Aux Comunicación'])) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+
+        $items = Download::onlyTrashed()
+            ->with('user:id,name,totem')
+            ->orderByDesc('deleted_at')
+            ->get();
+
+        return response()->json($items);
+    }
+
+    public function restore(Request $request, $id)
+    {
+        if (!$request->user()->hasAnyRole(['Director', 'Aux Comunicación'])) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+
+        $download = Download::onlyTrashed()->findOrFail($id);
+        $download->restore();
+
+        ActivityLogger::log('download_restaurado', 'Se restauró un download', $download->nombre);
+
+        return response()->json(['message' => 'Elemento restaurado correctamente']);
     }
 
     public function descargar(Download $download)

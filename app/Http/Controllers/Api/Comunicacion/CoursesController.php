@@ -72,6 +72,30 @@ class CoursesController extends Controller
         return response()->json(['message' => 'Curso eliminado correctamente']);
     }
 
+    /**
+     * Papelera de cursos eliminados — mismo criterio que destroy(): Director
+     * o Aux Comunicación, sin acotar por autor.
+     */
+    public function papelera()
+    {
+        Gate::authorize('viewPapelera', Course::class);
+
+        return Course::onlyTrashed()->orderByDesc('deleted_at')->get();
+    }
+
+    public function restore($id)
+    {
+        $course = Course::onlyTrashed()->findOrFail($id);
+
+        Gate::authorize('restore', $course);
+
+        $course->restore();
+
+        ActivityLogger::log('curso_restaurado', 'Se restauró un curso', $course->titulo);
+
+        return response()->json(['message' => 'Curso restaurado correctamente']);
+    }
+
     private function validateCourse(Request $request): array
     {
         return $request->validate([

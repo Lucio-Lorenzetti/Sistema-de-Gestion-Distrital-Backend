@@ -121,11 +121,45 @@ class NewsController extends Controller
         }
 
         $news->delete();
-        
+
         ActivityLogger::log('noticia_eliminada', 'Se eliminó una noticia', $news->titulo);
 
         return response()->json(['message' => 'Noticia eliminada']);
     }
+
+    /**
+     * Papelera de noticias eliminadas — mismo criterio que destroy(): Director
+     * o Aux Comunicación, sin acotar por autor (no es personal como Programas).
+     */
+    public function papelera(Request $request)
+    {
+        if (!$request->user()->hasAnyRole(['Director', 'Aux Comunicación'])) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+
+        $noticias = News::onlyTrashed()
+            ->with('autor:id,name,totem')
+            ->orderBy('deleted_at', 'desc')
+            ->get()
+            ->map(fn($n) => $this->formatNoticia($n));
+
+        return response()->json($noticias);
+    }
+
+    public function restore(Request $request, $id)
+    {
+        if (!$request->user()->hasAnyRole(['Director', 'Aux Comunicación'])) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+
+        $news = News::onlyTrashed()->findOrFail($id);
+        $news->restore();
+
+        ActivityLogger::log('noticia_restaurada', 'Se restauró una noticia', $news->titulo);
+
+        return response()->json(['message' => 'Noticia restaurada correctamente']);
+    }
+
     private function formatNoticia(News $noticia): array
     {
         return [
@@ -140,6 +174,7 @@ class NewsController extends Controller
             'autor' => $noticia->autor?->nombre_visible ?? 'Sin asignar',
             'fecha' => $noticia->publicado_at?->format('d/m/Y') ?? 'No programada',
             'fecha_iso' => $noticia->publicado_at?->toIso8601String(),
+            'deleted_at' => $noticia->deleted_at,
         ];
     }
 

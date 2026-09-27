@@ -49,4 +49,27 @@ class RoleController extends Controller
 
         return response()->json($role, 201);
     }
+
+    /**
+     * Editar la metadata de un rol ya creado — solo Developer. El "nombre" NO
+     * se puede tocar acá a propósito: hay comparaciones de string hardcodeadas
+     * contra nombres de rol en todo el backend (isDeveloper(), hasRole('Director'),
+     * etc.) — renombrar un rol existente las rompería en silencio.
+     */
+    public function update(Request $request, Role $role)
+    {
+        Gate::authorize('update', Role::class);
+
+        $validated = $request->validate([
+            'requiere_rama' => 'boolean',
+            'requiere_grupo' => 'boolean',
+            'autosolicitable' => 'boolean',
+            'reemplazo_unico' => 'nullable|in:grupo,distrito',
+            'unico_por_usuario' => 'boolean',
+        ]);
+
+        $role->update($validated);
+
+        return response()->json($role);
+    }
 }
