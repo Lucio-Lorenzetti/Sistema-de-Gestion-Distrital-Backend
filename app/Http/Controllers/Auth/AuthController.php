@@ -51,10 +51,53 @@ class AuthController extends Controller
             return $service->crearSolicitud($user, $role, $rama, $grupo);
         });
 
+        $solicitud->user->sendEmailVerificationNotification();
+
         return response()->json([
-            'message' => 'Cuenta creada. Tu solicitud de rol quedó pendiente de aprobación.',
+            'message' => 'Cuenta creada. Revisá tu correo para verificar tu cuenta, y esperá a que aprueben tu solicitud de rol.',
             'solicitud' => $solicitud,
         ], 201);
+    }
+
+    /**
+     * Link firmado que manda sendEmailVerificationNotification() — sin
+     * auth:sanctum (todavía no puede haber sesión: recién se registró y ni
+     * siquiera está aprobado). La firma + el hash del email son la prueba de
+     * identidad, no una sesión.
+     */
+    public function verifyEmail(Request $request, $id, $hash)
+    {
+        $user = User::findOrFail($id);
+
+        if (!hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
+            abort(403, 'Link de verificación inválido.');
+        }
+
+        if ($user->hasVerifiedEmail()) {
+            return response()->json(['message' => 'Tu email ya estaba verificado.']);
+        }
+
+        $user->markEmailAsVerified();
+
+        return response()->json(['message' => 'Email verificado correctamente.']);
+    }
+
+    /**
+     * Reenviar el link de verificación — pública (todavía no hay sesión),
+     * respuesta genérica para no filtrar si el email existe (mismo criterio
+     * que forgotPassword()).
+     */
+    public function resendVerification(Request $request)
+    {
+        $request->validate(['email' => 'required|email']);
+
+        $user = User::where('email', $request->email)->first();
+
+        if ($user && !$user->hasVerifiedEmail()) {
+            $user->sendEmailVerificationNotification();
+        }
+
+        return response()->json(['message' => 'Si el email existe y no fue verificado todavía, te reenviamos el link.']);
     }
 
     public function login(Request $request)
@@ -75,6 +118,16 @@ class AuthController extends Controller
         if (! $user->activo) {
             throw ValidationException::withMessages([
                 'email' => ['Tu cuenta está pendiente de aprobación.'],
+            ]);
+        }
+
+        // Cuentas ya existentes antes de este feature quedaron verificadas por
+        // migración (no se les puede pedir retroactivamente que verifiquen un
+        // email que ya vienen usando hace tiempo) — este chequeo solo frena a
+        // las registradas de acá en más.
+        if (! $user->hasVerifiedEmail()) {
+            throw ValidationException::withMessages([
+                'email' => ['Todavía no verificaste tu email — revisá tu casilla de entrada.'],
             ]);
         }
 

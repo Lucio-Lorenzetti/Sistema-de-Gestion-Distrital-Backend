@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\Programas\NoteController;
 use App\Http\Controllers\Api\Comunicacion\NewsController;
 use App\Http\Controllers\Api\Comunicacion\DownloadController;
 use App\Http\Controllers\Api\Comunicacion\CoursesController;
+use App\Http\Controllers\Api\Gestion\NotificationController;
 use App\Http\Controllers\ActivityLogController;
 
 // Públicas
@@ -20,6 +21,8 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])->middleware('signed')->name('verification.verify');
+Route::post('/email/verify/reenviar', [AuthController::class, 'resendVerification']);
 Route::get('/grupos', [GrupoController::class, 'index']);
 Route::get('/ramas', [RamaController::class, 'index']);
 Route::get('/roles/solicitables', [RoleController::class, 'solicitables']);
@@ -44,6 +47,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/me/perfil', [AuthController::class, 'updatePerfil']);
     Route::put('/me/password', [AuthController::class, 'updatePassword']);
     Route::delete('/me/roles/{role}', [AuthController::class, 'renunciarRol']);
+
+    Route::get('/me/notificaciones', [NotificationController::class, 'index']);
+    Route::get('/me/notificaciones/no-leidas', [NotificationController::class, 'noLeidas']);
+    Route::patch('/me/notificaciones/{id}/leer', [NotificationController::class, 'marcarLeida']);
+    Route::patch('/me/notificaciones/leer-todas', [NotificationController::class, 'marcarTodasLeidas']);
 
     //Usuarios y roles
     Route::get('/roles', [RoleController::class, 'index']);

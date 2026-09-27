@@ -7,6 +7,7 @@ use App\Models\Rama;
 use App\Models\Role;
 use App\Models\RoleRequest;
 use App\Models\User;
+use App\Notifications\SolicitudRolRevisadaNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -53,6 +54,8 @@ class RoleRequestService
             ]);
         }
 
+        RoleCombinationValidator::validar($user, $role, $grupo?->id);
+
         return RoleRequest::create([
             'user_id' => $user->id,
             'role_id' => $role->id,
@@ -69,13 +72,17 @@ class RoleRequestService
     public function aprobar(RoleRequest $solicitud, User $actor): void
     {
         DB::transaction(function () use ($solicitud, $actor) {
+            $target = $solicitud->user;
+
+            // Revalidado acá también (no solo al crear la solicitud): pudo haberse
+            // aprobado otra solicitud en el medio que ahora genere un conflicto.
+            RoleCombinationValidator::validar($target, $solicitud->role, $solicitud->grupo_id);
+
             $solicitud->update([
                 'estado' => 'aprobada',
                 'revisado_por_id' => $actor->id,
                 'revisado_at' => now(),
             ]);
-
-            $target = $solicitud->user;
 
             $target->roles()->syncWithoutDetaching([
                 $solicitud->role_id => [
@@ -99,6 +106,8 @@ class RoleRequestService
                 'Se aprobó una solicitud de rol',
                 "{$target->name} → {$solicitud->role->nombre}"
             );
+
+            $target->notify(new SolicitudRolRevisadaNotification($solicitud->fresh()));
         });
     }
 
@@ -120,5 +129,7 @@ class RoleRequestService
             'Se rechazó una solicitud de rol',
             "{$solicitud->user->name} → {$solicitud->role->nombre}"
         );
+
+        $solicitud->user->notify(new SolicitudRolRevisadaNotification($solicitud));
     }
 }

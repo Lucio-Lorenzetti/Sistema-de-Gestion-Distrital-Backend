@@ -7,6 +7,7 @@ use App\Models\Grupo;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\ActivityLogger;
+use App\Services\RoleCombinationValidator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +28,8 @@ class DesignacionController extends Controller
         $rol = Role::where('nombre', 'Jefe de Grupo')->firstOrFail();
         $nuevoTitular = User::findOrFail($validated['user_id']);
         $actor = Auth::user();
+
+        RoleCombinationValidator::validar($nuevoTitular, $rol, $grupo->id);
 
         DB::transaction(function () use ($rol, $grupo, $nuevoTitular, $actor) {
             DB::table('user_roles')

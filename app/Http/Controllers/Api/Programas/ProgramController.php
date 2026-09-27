@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Programas;
 
 use App\Http\Controllers\Controller;
 use App\Models\Program;
+use App\Notifications\ProgramaRevisadoNotification;
 use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -376,6 +377,12 @@ class ProgramController extends Controller
             'rechazado' => ActivityLogger::log('programa_rechazado', 'Se rechazó un programa', $program->titulo),
             default     => null,
         };
+
+        // Avisarle al autor, salvo que se lo haya aprobado/rechazado a sí mismo
+        // (no debería pasar dado Gate::authorize('updateStatus') arriba, pero por las dudas).
+        if (in_array($validated['estado'], ['aprobado', 'rechazado']) && $program->owner && $program->owner_id !== Auth::id()) {
+            $program->owner->notify(new ProgramaRevisadoNotification($program, $validated['estado']));
+        }
 
         return response()->json([
             'message' => 'Estado actualizado correctamente',

@@ -91,7 +91,7 @@ class UserSeeder extends Seeder
                 'activo' => true,
                 'rama_id' => $rama ? $rama->id : null,
             ]);
-            $auxRama->roles()->attach(Role::where('nombre', 'Aux Prog Rama')->first());
+            $auxRama->roles()->attach(Role::where('nombre', 'Aux Prog Rama')->first(), ['rama_id' => $rama?->id]);
         }
 
         // 9. Auxiliar de Comunicación
@@ -111,7 +111,12 @@ class UserSeeder extends Seeder
             'activo' => true,
             'grupo_id' => $grupoPrueba,
         ]);
-        $jefe->roles()->attach(Role::whereIn('nombre', ['Jefe de Grupo', 'Educador'])->get());
+        $rolJefePrueba = Role::where('nombre', 'Jefe de Grupo')->first();
+        $rolEducadorPrueba = Role::where('nombre', 'Educador')->first();
+        $jefe->roles()->attach([
+            $rolJefePrueba->id => ['grupo_id' => $grupoPrueba],
+            $rolEducadorPrueba->id => ['grupo_id' => $grupoPrueba],
+        ]);
 
         // 11. Educador (de prueba)
         $educador = User::create([
@@ -121,7 +126,7 @@ class UserSeeder extends Seeder
             'activo' => true,
             'grupo_id' => $grupoPrueba,
         ]);
-        $educador->roles()->attach(Role::where('nombre', 'Educador')->first());
+        $educador->roles()->attach(Role::where('nombre', 'Educador')->first(), ['grupo_id' => $grupoPrueba]);
 
         // --- NUEVOS DATOS SOLICITADOS ---
         $grupos = [
@@ -152,7 +157,10 @@ class UserSeeder extends Seeder
                 'password' => $passwordFija,
                 'activo' => true,
                 'grupo_id' => $grupoModel->id
-            ])->roles()->attach([$rolJefe->id, $rolEducador->id]);
+            ])->roles()->attach([
+                $rolJefe->id => ['grupo_id' => $grupoModel->id],
+                $rolEducador->id => ['grupo_id' => $grupoModel->id],
+            ]);
 
             // Crear 2 educadores por cada rama
             foreach ($ramasEducador as $nombreRama) {
@@ -165,7 +173,7 @@ class UserSeeder extends Seeder
                         'activo' => true,
                         'grupo_id' => $grupoModel->id,
                         'rama_id' => $rama?->id
-                    ])->roles()->attach($rolEducador->id);
+                    ])->roles()->attach($rolEducador->id, ['grupo_id' => $grupoModel->id, 'rama_id' => $rama?->id]);
                 }
             }
         }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Programas;
 use App\Http\Controllers\Controller;
 use App\Models\Program;
 use App\Models\ProgramNote;
+use App\Notifications\ComentarioNuevoNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -39,14 +40,15 @@ class NoteController extends Controller
         ]);
 
         $parentId = $validated['parent_id'] ?? null;
+        $notaPadre = null;
 
         if ($parentId !== null) {
-            $padreEsRaizDelPrograma = ProgramNote::where('id', $parentId)
+            $notaPadre = ProgramNote::where('id', $parentId)
                 ->where('program_id', $program->id)
                 ->whereNull('parent_id')
-                ->exists();
+                ->first();
 
-            if (!$padreEsRaizDelPrograma) {
+            if (!$notaPadre) {
                 return response()->json([
                     'message' => 'El comentario padre no existe o no es la raíz de un hilo de este programa',
                 ], 422);
@@ -65,6 +67,14 @@ class NoteController extends Controller
             'contenido'  => $validated['contenido'],
             'resuelta'   => false,
         ]);
+
+        // Un hilo nuevo avisa al autor del programa; una respuesta avisa a quien
+        // escribió la raíz — nunca al propio autor del comentario.
+        $destinatario = $notaPadre ? $notaPadre->user : $program->owner;
+        if ($destinatario && $destinatario->id !== Auth::id()) {
+            $note->setRelation('program', $program)->setRelation('user', Auth::user());
+            $destinatario->notify(new ComentarioNuevoNotification($note, (bool) $notaPadre));
+        }
 
         return response()->json($note->load('user:id,name,totem'), 201);
     }

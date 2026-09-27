@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\ActivityLogger;
+use App\Services\RoleCombinationValidator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -130,6 +131,9 @@ class UserController extends Controller
             'grupo_id' => 'nullable|exists:grupos,id',
         ]);
 
+        $role = Role::findOrFail($validated['role_id']);
+        RoleCombinationValidator::validar($user, $role, $validated['grupo_id'] ?? null);
+
         $user->roles()->syncWithoutDetaching([
             $validated['role_id'] => [
                 'rama_id' => $validated['rama_id'] ?? null,
@@ -143,7 +147,6 @@ class UserController extends Controller
             $user->forceFill(['activo' => true])->save();
         }
 
-        $role = Role::find($validated['role_id']);
         ActivityLogger::log('rol_asignado_developer', 'Developer asignó un rol directo', "{$user->name} → {$role->nombre}");
 
         return response()->json($user->load('roles'));

@@ -68,7 +68,7 @@ class NewsController extends Controller
             'estado' => $validated['estado'],
             'categoria' => $validated['categoria'] ?? 'Distrital',
             'imagen' => $rutaImagen,
-            'publicado_at' => $validated['publicado_at'],
+            'publicado_at' => $validated['publicado_at'] ?? null,
             'autor_id' => auth()->id(),
             'visitas' => 0,
         ]);

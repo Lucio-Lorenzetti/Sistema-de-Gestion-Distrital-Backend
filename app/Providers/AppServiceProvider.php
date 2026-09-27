@@ -13,7 +13,9 @@ use App\Policies\RolePolicy;
 use App\Policies\RoleRequestPolicy;
 use App\Policies\UserPolicy;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -49,6 +51,25 @@ class AppServiceProvider extends ServiceProvider
         ResetPassword::createUrlUsing(function (User $user, string $token) {
             $frontendUrl = rtrim(config('app.frontend_url'), '/');
             return "{$frontendUrl}/restablecer-contrasena?token={$token}&email=" . urlencode($user->email);
+        });
+
+        // Mismo criterio que ResetPassword: el link apunta al frontend, no a una
+        // ruta del backend. Se genera primero la URL firmada "real" (misma ruta
+        // nombrada que valida la firma en AuthController::verifyEmail) y se le
+        // cambia el host/path por el del frontend, conservando id/hash/expires/
+        // signature intactos — la firma sigue siendo válida porque se calculó
+        // sobre esos mismos parámetros.
+        VerifyEmail::createUrlUsing(function (User $user) {
+            $temporaryUrl = URL::temporarySignedRoute(
+                'verification.verify',
+                now()->addMinutes(60),
+                ['id' => $user->getKey(), 'hash' => sha1($user->getEmailForVerification())]
+            );
+
+            $query = parse_url($temporaryUrl, PHP_URL_QUERY);
+            $frontendUrl = rtrim(config('app.frontend_url'), '/');
+
+            return "{$frontendUrl}/verificar-email/{$user->getKey()}/" . sha1($user->getEmailForVerification()) . "?{$query}";
         });
     }
 }
