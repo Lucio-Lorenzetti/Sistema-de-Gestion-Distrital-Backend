@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\Comunicacion\DownloadController;
 use App\Http\Controllers\Api\Comunicacion\CoursesController;
 use App\Http\Controllers\Api\Gestion\NotificationController;
 use App\Http\Controllers\Api\Gestion\FeatureRequestController;
+use App\Http\Controllers\Api\Gestion\AsistenteIaController;
 use App\Http\Controllers\ActivityLogController;
 
 // Públicas
@@ -59,6 +60,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/peticiones-mejora', [FeatureRequestController::class, 'store']);
     Route::patch('/peticiones-mejora/{featureRequest}', [FeatureRequestController::class, 'update']);
     Route::delete('/peticiones-mejora/{featureRequest}', [FeatureRequestController::class, 'destroy']);
+
+    Route::post('/actualizaciones/chat', [AsistenteIaController::class, 'chat']);
     Route::patch('/me/notificaciones/leer-todas', [NotificationController::class, 'marcarTodasLeidas']);
 
     //Usuarios y roles

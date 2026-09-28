@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api\Programas;
 
 use App\Http\Controllers\Controller;
 use App\Models\Program;
+use App\Notifications\ProgramaEnviadoRevisionNotification;
 use App\Notifications\ProgramaRevisadoNotification;
 use App\Services\ActivityLogger;
+use App\Services\DestinatarioRoles;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -382,6 +384,17 @@ class ProgramController extends Controller
         // (no debería pasar dado Gate::authorize('updateStatus') arriba, pero por las dudas).
         if (in_array($validated['estado'], ['aprobado', 'rechazado']) && $program->owner && $program->owner_id !== Auth::id()) {
             $program->owner->notify(new ProgramaRevisadoNotification($program, $validated['estado']));
+        }
+
+        // "Enviado" avisa a quienes lo van a revisar: Jefe de Grupo de ese
+        // grupo, Aux Prog Rama de esa rama, y Aux Prog General (sin scope).
+        if ($validated['estado'] === 'enviado') {
+            DestinatarioRoles::porRolYGrupo('Jefe de Grupo', $program->grupo_id)
+                ->merge(DestinatarioRoles::porRolYRama('Aux Prog Rama', $program->rama_id))
+                ->merge(DestinatarioRoles::porRol('Aux Prog General'))
+                ->unique('id')
+                ->reject(fn ($u) => $u->id === Auth::id())
+                ->each(fn ($u) => $u->notify(new ProgramaEnviadoRevisionNotification($program)));
         }
 
         return response()->json([

@@ -4,8 +4,11 @@ namespace App\Http\Controllers\Api\Comunicacion;
 
 use App\Http\Controllers\Controller;
 use App\Models\Course;
+use App\Notifications\CursoCreadoEditadoNotification;
 use App\Services\ActivityLogger;
+use App\Services\DestinatarioRoles;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
@@ -30,6 +33,7 @@ class CoursesController extends Controller
         $course = Course::create($validated);
 
         ActivityLogger::log('curso_creado', 'Se creó un nuevo curso', $course->titulo);
+        $this->notificarDirectorYJefes($course, true);
 
         return response()->json($course, 201);
     }
@@ -43,8 +47,22 @@ class CoursesController extends Controller
         $course->update($validated);
 
         ActivityLogger::log('curso_actualizado', 'Se actualizó un curso', $course->titulo);
+        $this->notificarDirectorYJefes($course, false);
 
         return response()->json($course);
+    }
+
+    /**
+     * Director de Distrito + todos los Jefes de Grupo — los cursos no son de
+     * un grupo puntual, así que se avisa a todos, salvo a quien hizo el cambio.
+     */
+    private function notificarDirectorYJefes(Course $course, bool $esNuevo): void
+    {
+        DestinatarioRoles::porRol('Director')
+            ->merge(DestinatarioRoles::porRol('Jefe de Grupo'))
+            ->unique('id')
+            ->reject(fn ($u) => $u->id === Auth::id())
+            ->each(fn ($u) => $u->notify(new CursoCreadoEditadoNotification($course, $esNuevo)));
     }
 
     public function patch(Request $request, Course $course)

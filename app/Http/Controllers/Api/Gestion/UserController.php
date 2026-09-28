@@ -114,16 +114,13 @@ class UserController extends Controller
 
     /**
      * Asignar cualquier rol+scope directo a un usuario, sin pasar por
-     * solicitud/designación — solo Developer. NO sobre uno mismo: ni siquiera
-     * Developer se salta el flujo normal para asignarse un rol a sí mismo
-     * (Gate::before lo bypassea todo, así que este chequeo tiene que vivir acá
-     * y no en la Policy, que nunca llega a ejecutarse para Developer).
+     * solicitud/designación — solo Developer. Sí puede ser sobre uno mismo:
+     * Developer no tiene que pedirle a nadie que le apruebe un rol propio,
+     * es la única cuenta con potestad total desde el vamos.
      */
     public function assignRole(Request $request, User $user)
     {
         Gate::authorize('assignRoleFreely', User::class);
-
-        abort_if($user->id === Auth::id(), 403, 'No podés asignarte un rol a vos mismo — pedilo como cualquier usuario, desde Mi Perfil.');
 
         $validated = $request->validate([
             'role_id' => 'required|exists:roles,id',

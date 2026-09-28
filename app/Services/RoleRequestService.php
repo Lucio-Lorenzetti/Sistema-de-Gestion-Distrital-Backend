@@ -7,6 +7,7 @@ use App\Models\Rama;
 use App\Models\Role;
 use App\Models\RoleRequest;
 use App\Models\User;
+use App\Notifications\SolicitudRolCreadaNotification;
 use App\Notifications\SolicitudRolRevisadaNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -56,13 +57,23 @@ class RoleRequestService
 
         RoleCombinationValidator::validar($user, $role, $grupo?->id);
 
-        return RoleRequest::create([
+        $solicitud = RoleRequest::create([
             'user_id' => $user->id,
             'role_id' => $role->id,
             'rama_id' => $rama?->id,
             'grupo_id' => $grupo?->id,
             'estado' => 'pendiente',
         ]);
+
+        // Educador → avisa al Jefe de Grupo de ESE grupo (mismo criterio que
+        // quién la aprueba). Cualquier otro rol → avisa al Director.
+        $destinatarios = strtolower($role->nombre) === 'educador'
+            ? DestinatarioRoles::porRolYGrupo('Jefe de Grupo', $grupo->id)
+            : DestinatarioRoles::porRol('Director');
+
+        $destinatarios->each(fn (User $u) => $u->notify(new SolicitudRolCreadaNotification($solicitud->load('role', 'user'))));
+
+        return $solicitud;
     }
 
     /**

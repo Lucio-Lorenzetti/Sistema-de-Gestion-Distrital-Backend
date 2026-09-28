@@ -9,6 +9,7 @@ use App\Models\Grupo;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class UserSeeder extends Seeder
 {
@@ -153,7 +154,7 @@ class UserSeeder extends Seeder
             // Crear Jefe de Grupo
             User::create([
                 'name' => "Jefe de Grupo {$g['nombre']}",
-                'email' => "jefe." . str_replace(' ', '', strtolower($g['nombre'])) . "@distrito.com",
+                'email' => "jefe." . str_replace(' ', '', Str::ascii(strtolower($g['nombre']))) . "@distrito.com",
                 'password' => $passwordFija,
                 'activo' => true,
                 'grupo_id' => $grupoModel->id
@@ -168,7 +169,7 @@ class UserSeeder extends Seeder
                 for ($i = 1; $i <= 2; $i++) {
                     User::create([
                         'name' => "Educador {$nombreRama} {$i} ({$g['nombre']})",
-                        'email' => "edu." . str_replace(' ', '', strtolower($nombreRama)) . ".{$i}." . str_replace(' ', '', strtolower($g['nombre'])) . "@distrito.com",
+                        'email' => "edu." . str_replace(' ', '', strtolower($nombreRama)) . ".{$i}." . str_replace(' ', '', Str::ascii(strtolower($g['nombre']))) . "@distrito.com",
                         'password' => $passwordFija,
                         'activo' => true,
                         'grupo_id' => $grupoModel->id,
