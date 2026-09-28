@@ -1,5 +1,7 @@
 <?php
 
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Api\Gestion\GrupoController;
@@ -14,6 +16,7 @@ use App\Http\Controllers\Api\Comunicacion\NewsController;
 use App\Http\Controllers\Api\Comunicacion\DownloadController;
 use App\Http\Controllers\Api\Comunicacion\CoursesController;
 use App\Http\Controllers\Api\Gestion\NotificationController;
+use App\Http\Controllers\Api\Gestion\FeatureRequestController;
 use App\Http\Controllers\ActivityLogController;
 
 // Públicas
@@ -51,6 +54,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me/notificaciones', [NotificationController::class, 'index']);
     Route::get('/me/notificaciones/no-leidas', [NotificationController::class, 'noLeidas']);
     Route::patch('/me/notificaciones/{id}/leer', [NotificationController::class, 'marcarLeida']);
+
+    Route::get('/peticiones-mejora', [FeatureRequestController::class, 'index']);
+    Route::post('/peticiones-mejora', [FeatureRequestController::class, 'store']);
+    Route::patch('/peticiones-mejora/{featureRequest}', [FeatureRequestController::class, 'update']);
+    Route::delete('/peticiones-mejora/{featureRequest}', [FeatureRequestController::class, 'destroy']);
     Route::patch('/me/notificaciones/leer-todas', [NotificationController::class, 'marcarTodasLeidas']);
 
     //Usuarios y roles
@@ -102,4 +110,29 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/courses/{course}', [CoursesController::class, 'patch']); // forzar cierre/finalización
     Route::delete('/courses/{course}', [CoursesController::class, 'destroy']);
     Route::patch('/courses/{id}/restore', [CoursesController::class, 'restore']);
+});
+
+// -----------------------------
+// RUTA PARA MANTENER VIVA LA BASE DE SUPABASE (USO INTERNO, PROTEGIDA POR TOKEN)
+// -----------------------------
+Route::get('/db-heartbeat-sistema/{token}', function (string $token) {
+    $secreto = env('CRON_SECRET', '');
+
+    if ($secreto === '' || ! hash_equals($secreto, $token)) {
+        return response()->json(['error' => 'No autorizado'], 401);
+    }
+
+    try {
+        // El cliente (cron-job.org) puede cortar la conexión por timeout
+        // antes de que el comando termine; que siga corriendo igual.
+        ignore_user_abort(true);
+        set_time_limit(300);
+        Artisan::call('db:heartbeat');
+
+        return response()->json(['status' => 'success', 'message' => 'Heartbeat registrado']);
+    } catch (\Exception $e) {
+        Log::error('Error en cron [db:heartbeat]: ' . $e->getMessage());
+
+        return response()->json(['status' => 'error', 'details' => $e->getMessage()], 500);
+    }
 });
