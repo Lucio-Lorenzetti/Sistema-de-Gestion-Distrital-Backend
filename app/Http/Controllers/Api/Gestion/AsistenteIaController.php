@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Api\Gestion;
 
 use App\Http\Controllers\Controller;
 use App\Models\FeatureRequest;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 /**
- * Chat con Claude para ayudar a Developer a pensar actualizaciones —
+ * Chat con Gemini para ayudar a Developer a pensar actualizaciones —
  * conversación efímera (no se persiste), el historial vive en el estado del
  * frontend y se manda de vuelta en cada request. Le paso como contexto el
  * roadmap actual (feature_requests) para que no repita ideas ya cargadas.
@@ -26,12 +28,12 @@ class AsistenteIaController extends Controller
             'historial.*.contenido' => 'required_with:historial|string',
         ]);
 
-        $apiKey = config('services.anthropic.key');
+        $apiKey = config('services.gemini.key');
 
         if (empty($apiKey)) {
             return response()->json([
                 'configurado' => false,
-                'message' => 'Falta configurar ANTHROPIC_API_KEY en el servidor.',
+                'message' => 'Falta configurar GEMINI_API_KEY en el servidor.',
             ], 200);
         }
 
@@ -45,33 +47,63 @@ class AsistenteIaController extends Controller
             . "(gestiona Programas educativos, Noticias, Cursos, Biblioteca y Usuarios/Roles) a pensar ideas para próximas versiones. "
             . "Sé concreto y breve. No repitas ideas que ya están en este roadmap:\n\n{$contexto}";
 
-        $mensajes = collect($validated['historial'] ?? [])
-            ->map(fn ($m) => ['role' => $m['role'], 'content' => $m['contenido']])
-            ->push(['role' => 'user', 'content' => $validated['mensaje']])
+        // Gemini usa "user"/"model" (no "assistant") como roles del historial.
+        $contents = collect($validated['historial'] ?? [])
+            ->map(fn ($m) => [
+                'role' => $m['role'] === 'assistant' ? 'model' : 'user',
+                'parts' => [['text' => $m['contenido']]],
+            ])
+            ->push(['role' => 'user', 'parts' => [['text' => $validated['mensaje']]]])
             ->values()
             ->all();
 
-        $respuesta = Http::withHeaders([
-            'x-api-key' => $apiKey,
-            'anthropic-version' => '2023-06-01',
-        ])->timeout(30)->post('https://api.anthropic.com/v1/messages', [
-            'model' => config('services.anthropic.model'),
-            'max_tokens' => 1024,
-            'system' => $systemPrompt,
-            'messages' => $mensajes,
-        ]);
+        $model = config('services.gemini.model');
+        $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent";
+        $body = [
+            'system_instruction' => ['parts' => [['text' => $systemPrompt]]],
+            'contents' => $contents,
+        ];
 
-        if ($respuesta->failed()) {
+        // El tier gratis de Gemini devuelve 503 "high demand" seguido — no es
+        // un error nuestro, pero sin reintento la demo queda a la suerte.
+        // Un timeout/corte de red tira ConnectionException ANTES de que haya
+        // Response para chequear ->failed(), por eso el try/catch adentro
+        // del mismo loop de reintentos.
+        $respuesta = null;
+        $intentos = 3;
+
+        for ($intento = 1; $intento <= $intentos; $intento++) {
+            try {
+                $respuesta = Http::withHeaders([
+                    'x-goog-api-key' => $apiKey,
+                    'Content-Type' => 'application/json',
+                ])->timeout(30)->post($url, $body);
+
+                if ($respuesta->successful()) {
+                    break;
+                }
+
+                Log::warning('Asistente IA (Gemini): respuesta con error', [
+                    'intento' => $intento, 'status' => $respuesta->status(), 'body' => $respuesta->body(),
+                ]);
+            } catch (ConnectionException $e) {
+                Log::warning('Asistente IA (Gemini): fallo de conexión', ['intento' => $intento, 'error' => $e->getMessage()]);
+                $respuesta = null;
+            }
+
+            if ($intento < $intentos) {
+                usleep(800_000);
+            }
+        }
+
+        if (!$respuesta || !$respuesta->successful()) {
             return response()->json([
                 'configurado' => true,
                 'message' => 'El asistente no pudo responder ahora mismo. Probá de nuevo en un rato.',
             ], 502);
         }
 
-        $texto = collect($respuesta->json('content'))
-            ->where('type', 'text')
-            ->pluck('text')
-            ->implode("\n");
+        $texto = $respuesta->json('candidates.0.content.parts.0.text', '');
 
         return response()->json(['configurado' => true, 'respuesta' => $texto]);
     }

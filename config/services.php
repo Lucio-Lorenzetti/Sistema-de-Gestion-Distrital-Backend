@@ -37,9 +37,9 @@ return [
 
     // Asistente IA del panel "Actualizaciones" (solo Developer) — sin key
     // configurada, AsistenteIaController avisa en vez de fallar feo.
-    'anthropic' => [
-        'key' => env('ANTHROPIC_API_KEY'),
-        'model' => env('ANTHROPIC_MODEL', 'claude-sonnet-5'),
+    'gemini' => [
+        'key' => env('GEMINI_API_KEY'),
+        'model' => env('GEMINI_MODEL', 'gemini-3.8-flash'),
     ],
 
 ];
