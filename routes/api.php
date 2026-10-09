@@ -10,6 +10,8 @@ use App\Http\Controllers\Api\Gestion\RoleController;
 use App\Http\Controllers\Api\Gestion\RoleRequestController;
 use App\Http\Controllers\Api\Gestion\UserController;
 use App\Http\Controllers\Api\Gestion\DesignacionController;
+use App\Http\Controllers\Api\Gestion\DistritoController;
+use App\Http\Controllers\Api\Gestion\MiGrupoController;
 use App\Http\Controllers\Api\Programas\ProgramController;
 use App\Http\Controllers\Api\Programas\NoteController;
 use App\Http\Controllers\Api\Comunicacion\NewsController;
@@ -28,6 +30,7 @@ Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])->middleware('signed')->name('verification.verify');
 Route::post('/email/verify/reenviar', [AuthController::class, 'resendVerification']);
 Route::get('/grupos', [GrupoController::class, 'index']);
+Route::get('/distrito', [DistritoController::class, 'show']);
 Route::get('/ramas', [RamaController::class, 'index']);
 Route::get('/roles/solicitables', [RoleController::class, 'solicitables']);
 Route::get('news', [NewsController::class, 'index']);
@@ -82,6 +85,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/solicitudes-rol/{roleRequest}/rechazar', [RoleRequestController::class, 'reject']);
     Route::patch('/grupos/{grupo}/jefe-de-grupo', [DesignacionController::class, 'jefeDeGrupo']);
     Route::patch('/distrito/director', [DesignacionController::class, 'director']);
+    Route::get('/mi-grupo', [MiGrupoController::class, 'show']);
+    Route::put('/mi-grupo', [MiGrupoController::class, 'update']);
+    Route::post('/mi-grupo/foto', [MiGrupoController::class, 'updateFoto']);
+    Route::delete('/mi-grupo/foto', [MiGrupoController::class, 'deleteFoto']);
 
     //Programas
     Route::get('/comentarios-pendientes', [NoteController::class, 'pendientes']);
