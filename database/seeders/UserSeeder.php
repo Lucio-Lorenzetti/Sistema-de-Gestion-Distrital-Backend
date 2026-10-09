@@ -71,10 +71,6 @@ class UserSeeder extends Seeder
         ]);
         $auxGeneral->roles()->attach(Role::where('nombre', 'Aux Prog General')->first());
 
-        // Mapeo de Auxiliares de Rama
-        // OJO: estos nombres tienen que ser IDÉNTICOS a los de RamaSeeder
-        // (Castores, Lobatos, Unidad Scout, Caminantes, Rovers), si no, Rama::where()
-        // devuelve null y el auxiliar queda sin rama_id.
         $ramasMapeo = [
             'Castores'     => 'aux.castores@gmail.com',
             'Lobatos'      => 'aux.lobatos@gmail.com',
@@ -178,5 +174,9 @@ class UserSeeder extends Seeder
                 }
             }
         }
+
+        // 12. Cuentas de prueba con email ya verificado: el login rechaza los no verificados.
+        //    Va por query builder porque email_verified_at no está en $fillable.
+        DB::table('users')->whereNull('email_verified_at')->update(['email_verified_at' => now()]);
     }
 }
