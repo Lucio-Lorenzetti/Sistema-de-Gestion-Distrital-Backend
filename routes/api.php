@@ -1,8 +1,7 @@
 <?php
 
-use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\SystemController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Api\Gestion\GrupoController;
 use App\Http\Controllers\Api\Gestion\RamaController;
@@ -125,24 +124,6 @@ Route::middleware('auth:sanctum')->group(function () {
 // -----------------------------
 // RUTA PARA MANTENER VIVA LA BASE DE SUPABASE (USO INTERNO, PROTEGIDA POR TOKEN)
 // -----------------------------
-Route::get('/db-heartbeat-sistema/{token}', function (string $token) {
-    $secreto = env('CRON_SECRET', '');
-
-    if ($secreto === '' || ! hash_equals($secreto, $token)) {
-        return response()->json(['error' => 'No autorizado'], 401);
-    }
-
-    try {
-        // El cliente (cron-job.org) puede cortar la conexión por timeout
-        // antes de que el comando termine; que siga corriendo igual.
-        ignore_user_abort(true);
-        set_time_limit(300);
-        Artisan::call('db:heartbeat');
-
-        return response()->json(['status' => 'success', 'message' => 'Heartbeat registrado']);
-    } catch (\Exception $e) {
-        Log::error('Error en cron [db:heartbeat]: ' . $e->getMessage());
-
-        return response()->json(['status' => 'error', 'details' => $e->getMessage()], 500);
-    }
-});
+// Antes era una Closure acá mismo; se movió a SystemController porque
+// `php artisan route:cache` no soporta rutas con Closure.
+Route::get('/db-heartbeat-sistema/{token}', [SystemController::class, 'heartbeat']);

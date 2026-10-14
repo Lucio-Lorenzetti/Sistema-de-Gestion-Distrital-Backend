@@ -2,6 +2,5 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+// Route::view (no Closure) para que `php artisan route:cache` pueda cachear esta ruta.
+Route::view('/', 'welcome');
