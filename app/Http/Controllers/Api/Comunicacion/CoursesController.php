@@ -7,6 +7,7 @@ use App\Models\Course;
 use App\Notifications\CursoCreadoEditadoNotification;
 use App\Services\ActivityLogger;
 use App\Services\DestinatarioRoles;
+use App\Services\SafeNotifier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -62,7 +63,7 @@ class CoursesController extends Controller
             ->merge(DestinatarioRoles::porRol('Jefe de Grupo'))
             ->unique('id')
             ->reject(fn ($u) => $u->id === Auth::id())
-            ->each(fn ($u) => $u->notify(new CursoCreadoEditadoNotification($course, $esNuevo)));
+            ->each(fn ($u) => SafeNotifier::enviar($u, new CursoCreadoEditadoNotification($course, $esNuevo)));
     }
 
     public function patch(Request $request, Course $course)

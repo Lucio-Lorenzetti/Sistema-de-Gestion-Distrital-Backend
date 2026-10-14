@@ -8,6 +8,7 @@ use App\Notifications\ProgramaEnviadoRevisionNotification;
 use App\Notifications\ProgramaRevisadoNotification;
 use App\Services\ActivityLogger;
 use App\Services\DestinatarioRoles;
+use App\Services\SafeNotifier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -28,7 +29,18 @@ class ProgramController extends Controller
             ->map(fn ($nombre) => strtolower($nombre))
             ->toArray();
 
-        $query = Program::with(['rama', 'grupo', 'owner:id,name,email,totem']);
+        // El listado no muestra "cronograma" ni "anexos" (son jsonb con el HTML
+        // de cada día y los archivos adjuntos — lo más pesado de la fila, por
+        // lejos). Solo hacen falta al editar/revisar UN programa puntual, que
+        // ya pide /programas/{id} aparte. Excluirlas acá baja el peso de esta
+        // respuesta entre 70-90% sin cambiar nada de lo que se ve en la tabla.
+        $query = Program::select([
+                'id', 'titulo', 'diagnostico', 'objetivos', 'educadores_a_cargo',
+                'tipo', 'rama_id', 'grupo_id', 'owner_id', 'fecha_inicio', 'fecha_fin',
+                'estado', 'aprobacion_solicitada_at', 'motivo_rechazo',
+                'lugar', 'valor', 'transporte', 'deleted_at', 'created_at', 'updated_at',
+            ])
+            ->with(['rama', 'grupo', 'owner:id,name,email,totem']);
 
         if (in_array('director', $roleNames) || in_array('aux prog general', $roleNames)) {
             // Director y Aux Prog General ven TODOS los programas del distrito, sin filtro.
@@ -383,7 +395,7 @@ class ProgramController extends Controller
         // Avisarle al autor, salvo que se lo haya aprobado/rechazado a sí mismo
         // (no debería pasar dado Gate::authorize('updateStatus') arriba, pero por las dudas).
         if (in_array($validated['estado'], ['aprobado', 'rechazado']) && $program->owner && $program->owner_id !== Auth::id()) {
-            $program->owner->notify(new ProgramaRevisadoNotification($program, $validated['estado']));
+            SafeNotifier::enviar($program->owner, new ProgramaRevisadoNotification($program, $validated['estado']));
         }
 
         // "Enviado" avisa a quienes lo van a revisar: Jefe de Grupo de ese
@@ -394,7 +406,7 @@ class ProgramController extends Controller
                 ->merge(DestinatarioRoles::porRol('Aux Prog General'))
                 ->unique('id')
                 ->reject(fn ($u) => $u->id === Auth::id())
-                ->each(fn ($u) => $u->notify(new ProgramaEnviadoRevisionNotification($program)));
+                ->each(fn ($u) => SafeNotifier::enviar($u, new ProgramaEnviadoRevisionNotification($program)));
         }
 
         return response()->json([

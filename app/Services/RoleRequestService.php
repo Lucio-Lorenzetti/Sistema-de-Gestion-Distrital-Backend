@@ -71,7 +71,7 @@ class RoleRequestService
             ? DestinatarioRoles::porRolYGrupo('Jefe de Grupo', $grupo->id)
             : DestinatarioRoles::porRol('Director');
 
-        $destinatarios->each(fn (User $u) => $u->notify(new SolicitudRolCreadaNotification($solicitud->load('role', 'user'))));
+        $destinatarios->each(fn (User $u) => SafeNotifier::enviar($u, new SolicitudRolCreadaNotification($solicitud->load('role', 'user'))));
 
         return $solicitud;
     }
@@ -118,7 +118,7 @@ class RoleRequestService
                 "{$target->name} → {$solicitud->role->nombre}"
             );
 
-            $target->notify(new SolicitudRolRevisadaNotification($solicitud->fresh()));
+            SafeNotifier::enviar($target, new SolicitudRolRevisadaNotification($solicitud->fresh()));
         });
     }
 
@@ -141,6 +141,6 @@ class RoleRequestService
             "{$solicitud->user->name} → {$solicitud->role->nombre}"
         );
 
-        $solicitud->user->notify(new SolicitudRolRevisadaNotification($solicitud));
+        SafeNotifier::enviar($solicitud->user, new SolicitudRolRevisadaNotification($solicitud));
     }
 }

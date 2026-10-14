@@ -45,7 +45,10 @@ return [
             'port' => env('MAIL_PORT', 2525),
             'username' => env('MAIL_USERNAME'),
             'password' => env('MAIL_PASSWORD'),
-            'timeout' => null,
+            // null esperaba el timeout por defecto del socket (60s). Si Brevo
+            // no responde, toda la acción que dispara el mail (login, estado
+            // de un programa, etc.) quedaba colgada ese tiempo.
+            'timeout' => env('MAIL_TIMEOUT', 5),
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
 

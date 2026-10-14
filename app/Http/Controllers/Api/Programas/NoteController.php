@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Program;
 use App\Models\ProgramNote;
 use App\Notifications\ComentarioNuevoNotification;
+use App\Services\SafeNotifier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -73,7 +74,7 @@ class NoteController extends Controller
         $destinatario = $notaPadre ? $notaPadre->user : $program->owner;
         if ($destinatario && $destinatario->id !== Auth::id()) {
             $note->setRelation('program', $program)->setRelation('user', Auth::user());
-            $destinatario->notify(new ComentarioNuevoNotification($note, (bool) $notaPadre));
+            SafeNotifier::enviar($destinatario, new ComentarioNuevoNotification($note, (bool) $notaPadre));
         }
 
         return response()->json($note->load('user:id,name,totem'), 201);

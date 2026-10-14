@@ -14,6 +14,7 @@ use App\Services\UserScopeCache;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
@@ -51,7 +52,14 @@ class AuthController extends Controller
             return $service->crearSolicitud($user, $role, $rama, $grupo);
         });
 
-        $solicitud->user->sendEmailVerificationNotification();
+        // La cuenta y la solicitud de rol ya están guardadas (el DB::transaction
+        // de arriba ya se confirmó): que falle el mail de verificación no puede
+        // tirar abajo el registro, que ya se concretó.
+        try {
+            $solicitud->user->sendEmailVerificationNotification();
+        } catch (\Throwable $e) {
+            Log::error('No se pudo enviar el email de verificación al registrarse: ' . $e->getMessage());
+        }
 
         return response()->json([
             'message' => 'Cuenta creada. Revisá tu correo para verificar tu cuenta, y esperá a que aprueben tu solicitud de rol.',
@@ -94,7 +102,11 @@ class AuthController extends Controller
         $user = User::where('email', $request->email)->first();
 
         if ($user && !$user->hasVerifiedEmail()) {
-            $user->sendEmailVerificationNotification();
+            try {
+                $user->sendEmailVerificationNotification();
+            } catch (\Throwable $e) {
+                Log::error('No se pudo reenviar el email de verificación: ' . $e->getMessage());
+            }
         }
 
         return response()->json(['message' => 'Si el email existe y no fue verificado todavía, te reenviamos el link.']);
@@ -165,7 +177,11 @@ class AuthController extends Controller
     {
         $request->validate(['email' => 'required|email']);
 
-        Password::sendResetLink($request->only('email'));
+        try {
+            Password::sendResetLink($request->only('email'));
+        } catch (\Throwable $e) {
+            Log::error('No se pudo enviar el link de recuperación de contraseña: ' . $e->getMessage());
+        }
 
         return response()->json(['message' => 'Si el correo existe, se envió un link para restablecer la contraseña.']);
     }
