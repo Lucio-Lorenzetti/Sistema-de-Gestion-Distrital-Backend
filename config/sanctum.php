@@ -42,6 +42,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Track Last Used At
+    |--------------------------------------------------------------------------
+    |
+    | Con esto en true, Sanctum hace un UPDATE en personal_access_tokens en
+    | CADA pedido autenticado (hasta en el polling de notificaciones cada 30s).
+    | Nadie usa last_used_at en la app, así que lo desactivamos.
+    |
+    */
+
+    'last_used_at' => false,
+
+    /*
+    |--------------------------------------------------------------------------
     | Sanctum Middleware
     |--------------------------------------------------------------------------
     */

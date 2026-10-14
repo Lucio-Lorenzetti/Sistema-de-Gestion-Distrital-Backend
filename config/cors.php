@@ -6,6 +6,7 @@ return [
     'allowed_methods' => ['*'],
     'allowed_headers' => ['*'],
     'exposed_headers' => [],
-    'max_age' => 0,
+    // 24h: evita que el navegador repita el preflight OPTIONS en cada pedido.
+    'max_age' => 86400,
     'supports_credentials' => true,
 ];

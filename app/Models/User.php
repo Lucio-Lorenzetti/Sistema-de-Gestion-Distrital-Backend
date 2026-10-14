@@ -91,15 +91,33 @@ class User extends Authenticatable implements CanResetPasswordContract, MustVeri
     }
 
     /**
+     * Roles del usuario, cargados una sola vez y reusados durante todo el
+     * pedido. isDeveloper()/hasRole()/hasAnyRole()/roleScope() se llaman varias
+     * veces por request (controller + Policy + Gate::before); sin este caché
+     * cada llamada disparaba una consulta nueva.
+     *
+     * Ojo: si se modifican los roles de ESTE usuario a mitad de pedido
+     * (sync/detach sobre $this), hay que invalidar con
+     * $this->unsetRelation('roles') antes de volver a consultar.
+     */
+    protected function rolesCargados()
+    {
+        if (!$this->relationLoaded('roles')) {
+            $this->load('roles');
+        }
+
+        return $this->roles;
+    }
+
+    /**
      * Developer: acceso total, ver User::hasRole()/hasAnyRole() y el
      * Gate::before en AppServiceProvider. Consulta directa (no vía hasRole)
      * para no recursar.
      */
     public function isDeveloper(): bool
     {
-        return $this->roles()
-            ->whereRaw('LOWER(nombre) = ?', ['developer'])
-            ->exists();
+        return $this->rolesCargados()
+            ->contains(fn ($rol) => strtolower($rol->nombre) === 'developer');
     }
 
     /**
@@ -110,9 +128,10 @@ class User extends Authenticatable implements CanResetPasswordContract, MustVeri
      */
     public function roleScope(string $roleNombre): ?object
     {
-        $rol = $this->roles()
-            ->whereRaw('LOWER(nombre) = ?', [strtolower($roleNombre)])
-            ->first();
+        $nombre = strtolower($roleNombre);
+
+        $rol = $this->rolesCargados()
+            ->first(fn ($rol) => strtolower($rol->nombre) === $nombre);
 
         return $rol?->pivot;
     }
@@ -126,9 +145,10 @@ class User extends Authenticatable implements CanResetPasswordContract, MustVeri
             return true;
         }
 
-        return $this->roles()
-            ->whereRaw('LOWER(nombre) = ?', [strtolower($roleNombre)])
-            ->exists();
+        $nombre = strtolower($roleNombre);
+
+        return $this->rolesCargados()
+            ->contains(fn ($rol) => strtolower($rol->nombre) === $nombre);
     }
 
     /**
@@ -143,9 +163,8 @@ class User extends Authenticatable implements CanResetPasswordContract, MustVeri
 
         $rolesNormalizados = array_map('strtolower', $roles);
 
-        return $this->roles()
-            ->whereIn(\DB::raw('LOWER(nombre)'), $rolesNormalizados)
-            ->exists();
+        return $this->rolesCargados()
+            ->contains(fn ($rol) => in_array(strtolower($rol->nombre), $rolesNormalizados));
     }
 
     /**
