@@ -5,16 +5,21 @@ namespace App\Http\Controllers\Api\Gestion;
 use App\Http\Controllers\Controller;
 use App\Models\Role;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 
 class RoleController extends Controller
 {
     /**
      * Todos los roles + su metadata — para pantallas de gestión (protegido).
+     * Los roles casi no cambian (solo vía store()/update() de este mismo
+     * controller), así que se cachean y se invalidan ahí.
      */
     public function index()
     {
-        return response()->json(Role::orderBy('nombre')->get());
+        return response()->json(
+            Cache::remember('catalogo:roles', 86400, fn () => Role::orderBy('nombre')->get())
+        );
     }
 
     /**
@@ -24,9 +29,11 @@ class RoleController extends Controller
      */
     public function solicitables()
     {
-        return response()->json(
-            Role::where('autosolicitable', true)->orderBy('nombre')->get()
-        );
+        $roles = Cache::remember('catalogo:roles:solicitables', 86400, function () {
+            return Role::where('autosolicitable', true)->orderBy('nombre')->get();
+        });
+
+        return response()->json($roles);
     }
 
     /**
@@ -46,6 +53,8 @@ class RoleController extends Controller
         ]);
 
         $role = Role::create($validated);
+
+        $this->invalidarCatalogo();
 
         return response()->json($role, 201);
     }
@@ -70,6 +79,14 @@ class RoleController extends Controller
 
         $role->update($validated);
 
+        $this->invalidarCatalogo();
+
         return response()->json($role);
+    }
+
+    private function invalidarCatalogo(): void
+    {
+        Cache::forget('catalogo:roles');
+        Cache::forget('catalogo:roles:solicitables');
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Comunicacion;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use App\Models\News;
 use App\Services\ActivityLogger;
 
@@ -11,10 +12,17 @@ class NewsController extends Controller
 {
     public function index(Request $request)
     {
-        News::where('estado', 'Programada')
-            ->where('publicado_at', '<=', now())
-
-            ->update(['estado' => 'Publicada']);
+        // Antes este UPDATE corría en CADA GET /news, sin importar cuántos
+        // visitantes pegaran al endpoint a la vez (Home, /noticias público,
+        // el panel). Cache::add es atómico: solo el primer pedido dentro de la
+        // ventana de 60s ejecuta el UPDATE real; el resto lo saltea. Como
+        // mucho una noticia programada tarda hasta 60s de más en pasar a
+        // "Publicada", lo cual no afecta el uso real (no es contenido urgente).
+        if (Cache::add('news:publicar-programadas', true, 60)) {
+            News::where('estado', 'Programada')
+                ->where('publicado_at', '<=', now())
+                ->update(['estado' => 'Publicada']);
+        }
 
         $query = News::with('autor:id,name,totem')->latest();
 

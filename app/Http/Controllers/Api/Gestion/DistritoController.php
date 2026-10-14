@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Gestion;
 
 use App\Http\Controllers\Controller;
 use App\Models\Grupo;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class DistritoController extends Controller
@@ -19,7 +20,22 @@ class DistritoController extends Controller
      * Datos públicos de /distrito: integrantes del Consejo Distrital y grupos
      * con su Jefe de Grupo. Solo usuarios activos y no borrados.
      */
+    /**
+     * Depende de varias fuentes que cambian en puntos distintos de la app
+     * (designaciones, aprobación de solicitudes de rol, foto/datos de un
+     * grupo), así que en vez de invalidar desde cada uno de esos puntos
+     * —superficie grande, fácil olvidarse de uno y dejar esto desactualizado—
+     * se cachea con un TTL corto. Es la página pública "El Distrito": no hace
+     * falta que se actualice al instante.
+     */
     public function show()
+    {
+        return response()->json(
+            Cache::remember('distrito:show', 120, fn () => $this->calcular())
+        );
+    }
+
+    private function calcular(): array
     {
         $consejo = DB::table('user_roles')
             ->join('roles', 'roles.id', '=', 'user_roles.role_id')
@@ -51,9 +67,9 @@ class DistritoController extends Controller
                 'jefe' => $jefes->get($g->id),
             ]);
 
-        return response()->json([
+        return [
             'consejo' => $consejo,
             'grupos' => $grupos,
-        ]);
+        ];
     }
 }
