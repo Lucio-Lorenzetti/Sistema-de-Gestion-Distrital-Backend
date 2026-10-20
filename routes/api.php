@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\Comunicacion\CoursesController;
 use App\Http\Controllers\Api\Gestion\NotificationController;
 use App\Http\Controllers\Api\Gestion\FeatureRequestController;
 use App\Http\Controllers\Api\Gestion\AsistenteIaController;
+use App\Http\Controllers\Api\Gestion\SistemaController;
 use App\Http\Controllers\ActivityLogController;
 
 // Públicas
@@ -42,7 +43,6 @@ Route::get('/courses/{course}', [CoursesController::class, 'show']);
 Route::get('/bibliografia', [DownloadController::class, 'index']);
 Route::get('/bibliografia/papelera', [DownloadController::class, 'papelera'])->middleware('auth:sanctum');
 Route::get('/bibliografia/{download}/descargar', [DownloadController::class, 'descargar']);
-Route::get('/activity-logs', [ActivityLogController::class, 'index']);
 
 // Protegidas
 Route::middleware('auth:sanctum')->group(function () {
@@ -64,6 +64,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/peticiones-mejora/{featureRequest}', [FeatureRequestController::class, 'destroy']);
 
     Route::post('/actualizaciones/chat', [AsistenteIaController::class, 'chat']);
+
+    // Dashboard del Developer (el controller exige isDeveloper()).
+    Route::get('/sistema/estado', [SistemaController::class, 'estado']);
+    Route::get('/sistema/metricas', [SistemaController::class, 'metricas']);
+
+    // Registro de actividad: solo Director y Developer (el controller lo exige).
+    Route::get('/activity-logs', [ActivityLogController::class, 'index']);
     Route::patch('/me/notificaciones/leer-todas', [NotificationController::class, 'marcarTodasLeidas']);
 
     //Usuarios y roles

@@ -12,8 +12,11 @@ use App\Policies\ProgramPolicy;
 use App\Policies\RolePolicy;
 use App\Policies\RoleRequestPolicy;
 use App\Policies\UserPolicy;
+use App\Services\ErrorBuffer;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\Notifications\VerifyEmail;
+use Illuminate\Log\Events\MessageLogged;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
@@ -45,6 +48,10 @@ class AppServiceProvider extends ServiceProvider
         // crudos (hasAnyRole inline en NewsController/DownloadController,
         // CheckRole) vive en User::hasRole()/hasAnyRole().
         Gate::before(fn (User $user, string $ability) => $user->isDeveloper() ? true : null);
+
+        // Los últimos warnings/errores quedan a mano en el panel del Developer
+        // (ver SistemaController::estado), sin tener que abrir los logs de Render.
+        Event::listen(MessageLogged::class, [ErrorBuffer::class, 'registrar']);
 
         // El link de "restablecer contraseña" apunta al FRONTEND (SPA), no a
         // una ruta del backend.
