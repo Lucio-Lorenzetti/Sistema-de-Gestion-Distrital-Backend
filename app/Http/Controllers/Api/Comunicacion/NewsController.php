@@ -55,7 +55,6 @@ class NewsController extends Controller
             'copete' => 'required|string|max:500', // Validación
             'contenido' => 'required|string',
             'estado' => 'required|in:Publicada,Borrador,Programada',
-            'categoria' => 'nullable|string',
             'imagen' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
             'publicado_at' => 'nullable|date',
         ]);
@@ -74,7 +73,6 @@ class NewsController extends Controller
             'copete' => $validated['copete'], // <--- ESTO ES LO QUE FALTA
             'contenido' => $validated['contenido'],
             'estado' => $validated['estado'],
-            'categoria' => $validated['categoria'] ?? 'Distrital',
             'imagen' => $rutaImagen,
             'publicado_at' => $validated['publicado_at'] ?? null,
             'autor_id' => auth()->id(),
@@ -95,7 +93,6 @@ class NewsController extends Controller
             'copete' => 'required|string|max:500',
             'contenido' => 'sometimes|string',
             'estado' => 'sometimes|in:Publicada,Borrador,Programada',
-            'categoria' => 'nullable|string',
             'imagen' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
             'publicado_at' => 'nullable|date',
         ]);
@@ -176,7 +173,6 @@ class NewsController extends Controller
             'copete' => $noticia->copete, //
             'contenido' => $noticia->contenido,
             'estado' => $noticia->estado,
-            'categoria' => $noticia->categoria,
             'imagen' => $noticia->imagen ? asset('storage/' . $noticia->imagen) : null,
             'visitas' => $noticia->visitas,
             'autor' => $noticia->autor?->nombre_visible ?? 'Sin asignar',
