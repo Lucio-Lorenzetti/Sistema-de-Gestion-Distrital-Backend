@@ -65,6 +65,14 @@ class RoleRequestService
             'estado' => 'pendiente',
         ]);
 
+        // Al registrarse todavía no hay sesión (user_id queda null en el log), por
+        // eso el nombre va en la descripción y no se depende de Auth::id().
+        ActivityLogger::log(
+            'solicitud_rol_creada',
+            'Se creó una solicitud de rol',
+            "{$user->name} → {$role->nombre}"
+        );
+
         // Educador → avisa al Jefe de Grupo de ESE grupo (mismo criterio que
         // quién la aprueba). Cualquier otro rol → avisa al Director.
         $destinatarios = strtolower($role->nombre) === 'educador'

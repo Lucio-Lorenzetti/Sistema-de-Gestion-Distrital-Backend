@@ -62,6 +62,8 @@ class MiGrupoController extends Controller
         $grupo->foto = $request->file('foto')->store('grupos', $disco);
         $grupo->save();
 
+        ActivityLogger::log('grupo_foto_actualizada', 'Se actualizó la foto de un grupo', $grupo->nombre);
+
         return response()->json(['foto_url' => $grupo->foto_url]);
     }
 
@@ -73,6 +75,8 @@ class MiGrupoController extends Controller
             Storage::disk(config('filesystems.uploads_disk'))->delete($grupo->foto);
             $grupo->foto = null;
             $grupo->save();
+
+            ActivityLogger::log('grupo_foto_eliminada', 'Se eliminó la foto de un grupo', $grupo->nombre);
         }
 
         return response()->json(['message' => 'Foto del grupo eliminada correctamente']);

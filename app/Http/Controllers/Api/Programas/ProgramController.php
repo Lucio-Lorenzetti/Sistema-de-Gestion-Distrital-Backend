@@ -353,6 +353,8 @@ class ProgramController extends Controller
 
         $program->update($updateData);
 
+        ActivityLogger::log('programa_actualizado', 'Se editó un programa', $program->titulo);
+
         return response()->json([
             'message' => 'Programa actualizado exitosamente',
             'data'    => $program->fresh(['rama', 'grupo'])
@@ -389,6 +391,7 @@ class ProgramController extends Controller
             'enviado'   => ActivityLogger::log('programa_enviado', 'Se envió un programa a revisión', $program->titulo),
             'aprobado'  => ActivityLogger::log('programa_aprobado', 'Se aprobó un programa', $program->titulo),
             'rechazado' => ActivityLogger::log('programa_rechazado', 'Se rechazó un programa', $program->titulo),
+            'borrador'  => ActivityLogger::log('programa_vuelto_a_borrador', 'Se devolvió un programa a borrador', $program->titulo),
             default     => null,
         };
 
@@ -448,6 +451,8 @@ class ProgramController extends Controller
 
         $program->delete();
 
+        ActivityLogger::log('programa_eliminado', 'Se eliminó un programa', $program->titulo);
+
         return response()->json([
             'message' => 'Programa eliminado correctamente'
         ], 200);
@@ -480,6 +485,8 @@ class ProgramController extends Controller
         Gate::authorize('restore', $program);
 
         $program->restore();
+
+        ActivityLogger::log('programa_restaurado', 'Se restauró un programa', $program->titulo);
 
         return response()->json([
             'message' => 'Programa restaurado correctamente'

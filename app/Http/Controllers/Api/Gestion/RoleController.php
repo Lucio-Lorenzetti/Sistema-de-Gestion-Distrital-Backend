@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Gestion;
 
 use App\Http\Controllers\Controller;
 use App\Models\Role;
+use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
@@ -54,6 +55,8 @@ class RoleController extends Controller
 
         $role = Role::create($validated);
 
+        ActivityLogger::log('rol_creado', 'Se creó un rol del sistema', $role->nombre);
+
         $this->invalidarCatalogo();
 
         return response()->json($role, 201);
@@ -78,6 +81,8 @@ class RoleController extends Controller
         ]);
 
         $role->update($validated);
+
+        ActivityLogger::log('rol_configurado', 'Se editó la configuración de un rol', $role->nombre);
 
         $this->invalidarCatalogo();
 

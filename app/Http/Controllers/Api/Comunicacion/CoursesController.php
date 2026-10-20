@@ -77,6 +77,16 @@ class CoursesController extends Controller
 
         $course->update($validated);
 
+        // Este PATCH es el "cerrar inscripción ahora" / "reabrir inscripción": solo
+        // mueve fechas. Se registra según cómo quedó el estado calculado.
+        if (array_key_exists('fecha_cierre', $validated)) {
+            $course->estado === 'Abierto'
+                ? ActivityLogger::log('curso_inscripcion_reabierta', 'Se reabrió la inscripción de un curso', $course->titulo)
+                : ActivityLogger::log('curso_inscripcion_cerrada', 'Se cerró la inscripción de un curso', $course->titulo);
+        } elseif (array_key_exists('fecha_fin', $validated)) {
+            ActivityLogger::log('curso_fecha_modificada', 'Se modificó la fecha de finalización de un curso', $course->titulo);
+        }
+
         return response()->json($course);
     }
 

@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api\Gestion;
 
 use App\Http\Controllers\Controller;
 use App\Models\FeatureRequest;
+use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 /**
  * "Peticiones de mejora" — el roadmap liviano de la app. Director puede
@@ -56,6 +58,8 @@ class FeatureRequestController extends Controller
             'prioridad' => $validated['prioridad'] ?? 'media',
         ]);
 
+        ActivityLogger::log('peticion_mejora_creada', 'Se propuso una mejora al sistema', Str::limit($peticion->contenido, 80));
+
         return response()->json($peticion->load('autor:id,name,totem'), 201);
     }
 
@@ -70,6 +74,15 @@ class FeatureRequestController extends Controller
 
         $featureRequest->update($validated);
 
+        // Solo el cambio de estado es un hito del roadmap; mover la prioridad no.
+        if (array_key_exists('estado', $validated)) {
+            ActivityLogger::log(
+                'peticion_mejora_estado',
+                'Se cambió el estado de una petición de mejora',
+                str_replace('_', ' ', $featureRequest->estado) . ' · ' . Str::limit($featureRequest->contenido, 60)
+            );
+        }
+
         return response()->json($featureRequest->load('autor:id,name,totem'));
     }
 
@@ -78,6 +91,8 @@ class FeatureRequestController extends Controller
         abort_unless($request->user()->isDeveloper(), 403);
 
         $featureRequest->delete();
+
+        ActivityLogger::log('peticion_mejora_eliminada', 'Se eliminó una petición de mejora', Str::limit($featureRequest->contenido, 80));
 
         return response()->json(['message' => 'Petición eliminada']);
     }

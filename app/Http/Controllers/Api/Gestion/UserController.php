@@ -78,6 +78,8 @@ class UserController extends Controller
 
         $user->delete();
 
+        ActivityLogger::log('usuario_eliminado', 'Se eliminó un usuario', $user->name);
+
         return response()->json(['message' => 'Usuario eliminado correctamente']);
     }
 
