@@ -1,0 +1,11 @@
+.git
+node_modules
+tests
+docs
+.env
+.env.*
+!.env.example
+storage/logs/*
+*.log
+Lista de Users.md
+test_26.pdf

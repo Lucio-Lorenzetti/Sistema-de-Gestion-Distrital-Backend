@@ -97,6 +97,10 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
+            // Supabase en modo "transaction pooler" (puerto 6543) no admite sentencias
+            // preparadas del lado del servidor: con DB_EMULATE_PREPARES=true PDO las emula.
+            // Necesario en hostings serverless (Vercel), donde cada pedido abre su conexión.
+            'options' => env('DB_EMULATE_PREPARES', false) ? [PDO::ATTR_EMULATE_PREPARES => true] : [],
         ],
 
         'sqlsrv' => [
