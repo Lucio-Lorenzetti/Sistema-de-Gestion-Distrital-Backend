@@ -53,7 +53,7 @@ RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/conf-availab
 RUN a2enmod rewrite
 
 # Cachear config/rutas/eventos al arrancar (ver docker-entrypoint.sh: necesita
-# las env vars reales de Render, por eso no se hace acá en el build).
+# las env vars reales de la plataforma de hosting, por eso no se hace acá en el build).
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 

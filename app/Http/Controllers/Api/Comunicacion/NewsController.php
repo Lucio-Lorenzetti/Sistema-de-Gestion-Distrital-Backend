@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Comunicacion;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 use App\Models\News;
 use App\Services\ActivityLogger;
 
@@ -65,7 +66,7 @@ class NewsController extends Controller
 
         $rutaImagen = null;
         if ($request->hasFile('imagen')) {
-            $rutaImagen = $request->file('imagen')->store('noticias', 'public');
+            $rutaImagen = $request->file('imagen')->store('noticias', config('filesystems.uploads_disk'));
         }
 
         $news = News::create([
@@ -99,9 +100,9 @@ class NewsController extends Controller
 
         if ($request->hasFile('imagen')) {
             if ($news->imagen) {
-                \Storage::disk('public')->delete($news->imagen);
+                Storage::disk(config('filesystems.uploads_disk'))->delete($news->imagen);
             }
-            $validated['imagen'] = $request->file('imagen')->store('noticias', 'public');
+            $validated['imagen'] = $request->file('imagen')->store('noticias', config('filesystems.uploads_disk'));
         }
 
         if (
@@ -165,6 +166,22 @@ class NewsController extends Controller
         return response()->json(['message' => 'Noticia restaurada correctamente']);
     }
 
+    /**
+     * URL pública de la imagen. Usa el mismo disco que el resto de los archivos
+     * subidos (UPLOADS_DISK: Supabase en producción). Antes estaba fija en el disco
+     * local "public", que en un contenedor se pierde en cada reinicio o deploy.
+     */
+    private function urlImagen(?string $ruta): ?string
+    {
+        if (!$ruta) {
+            return null;
+        }
+
+        $url = Storage::disk(config('filesystems.uploads_disk'))->url($ruta);
+
+        return str_starts_with($url, 'http') ? $url : url($url);
+    }
+
     private function formatNoticia(News $noticia): array
     {
         return [
@@ -173,7 +190,7 @@ class NewsController extends Controller
             'copete' => $noticia->copete, //
             'contenido' => $noticia->contenido,
             'estado' => $noticia->estado,
-            'imagen' => $noticia->imagen ? asset('storage/' . $noticia->imagen) : null,
+            'imagen' => $this->urlImagen($noticia->imagen),
             'visitas' => $noticia->visitas,
             'autor' => $noticia->autor?->nombre_visible ?? 'Sin asignar',
             'fecha' => $noticia->publicado_at?->format('d/m/Y') ?? 'No programada',

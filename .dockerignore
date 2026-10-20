@@ -1,0 +1,16 @@
+# Lo que NO debe entrar a la imagen (el build instala sus propias dependencias).
+.git
+.github
+node_modules
+vendor
+.env
+.env.*
+!.env.example
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+tests
+*.log
+Lista de Users.md
+test_26.pdf
