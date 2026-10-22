@@ -60,6 +60,21 @@ class ErrorBuffer
         }
     }
 
+    /**
+     * Borra todas las entradas guardadas. Devuelve cuántas había.
+     */
+    public static function vaciar(): int
+    {
+        try {
+            $cantidad = count(Cache::get(self::CLAVE, []));
+            Cache::forget(self::CLAVE);
+
+            return $cantidad;
+        } catch (Throwable) {
+            return 0;
+        }
+    }
+
     public static function recientes(): array
     {
         try {

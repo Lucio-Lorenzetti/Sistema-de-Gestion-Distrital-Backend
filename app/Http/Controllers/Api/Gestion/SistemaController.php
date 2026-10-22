@@ -9,6 +9,7 @@ use App\Models\Rama;
 use App\Models\Role;
 use App\Models\RoleRequest;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use App\Services\ErrorBuffer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -76,6 +77,21 @@ class SistemaController extends Controller
             ],
             'errores_recientes' => ErrorBuffer::recientes(),
         ]);
+    }
+
+    /**
+     * Vacía el registro de errores recientes del Dashboard. Solo borra ese registro
+     * (el buffer del cache), no los logs del hosting ni la actividad del sistema.
+     */
+    public function vaciarErrores(Request $request): JsonResponse
+    {
+        abort_unless($request->user()->isDeveloper(), 403);
+
+        $eliminados = ErrorBuffer::vaciar();
+
+        ActivityLogger::log('errores_vaciados', 'Se vació el registro de errores recientes', "{$eliminados} entradas");
+
+        return response()->json(['message' => 'Errores vaciados', 'eliminados' => $eliminados]);
     }
 
     /**

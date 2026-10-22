@@ -29,6 +29,24 @@ class SistemaDashboardTest extends TestCase
         $this->getJson('/api/sistema/metricas')->assertUnauthorized();
     }
 
+    public function test_vaciar_los_errores_exige_sesion(): void
+    {
+        $this->deleteJson('/api/sistema/errores')->assertUnauthorized();
+    }
+
+    public function test_vaciar_borra_las_entradas_y_dice_cuantas_habia(): void
+    {
+        Log::error('Primero');
+        Log::warning('Segundo');
+
+        $this->assertSame(2, ErrorBuffer::vaciar());
+        $this->assertSame([], ErrorBuffer::recientes());
+        $this->assertSame(0, ErrorBuffer::vaciar(), 'Vaciar un buffer vacío no falla y devuelve 0.');
+
+        Log::error('Después de vaciar');
+        $this->assertSame(['Después de vaciar'], array_column(ErrorBuffer::recientes(), 'mensaje'));
+    }
+
     public function test_el_registro_de_actividad_ya_no_es_publico(): void
     {
         $this->getJson('/api/activity-logs')->assertUnauthorized();

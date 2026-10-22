@@ -68,6 +68,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Dashboard del Developer (el controller exige isDeveloper()).
     Route::get('/sistema/estado', [SistemaController::class, 'estado']);
     Route::get('/sistema/metricas', [SistemaController::class, 'metricas']);
+    Route::delete('/sistema/errores', [SistemaController::class, 'vaciarErrores']);
 
     // Registro de actividad: solo Director y Developer (el controller lo exige).
     Route::get('/activity-logs', [ActivityLogController::class, 'index']);
