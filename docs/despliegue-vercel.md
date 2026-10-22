@@ -48,7 +48,7 @@ no, de Supabase, Brevo y Google AI Studio).
 | `DB_CONNECTION` | `pgsql` |
 | `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` | Cadena del **pooler** de Supabase (la conexión directa es solo IPv6 y Vercel sale por IPv4) |
 | `DB_SSLMODE` | `require` |
-| `DB_EMULATE_PREPARES` | `true` si usás el pooler en modo transacción (puerto 6543) |
+| `DB_DISABLE_PREPARES` | `true` si usás el pooler en modo transacción (puerto 6543). **No uses `DB_EMULATE_PREPARES`**: rompe las consultas con booleanos (`boolean = integer`) |
 | `CACHE_STORE` | `database` |
 | `SESSION_DRIVER` | `array` (la API usa tokens, no sesiones) |
 | `QUEUE_CONNECTION` | `sync` |
@@ -90,6 +90,8 @@ no, de Supabase, Brevo y Google AI Studio).
 
 - **500 al descargar el PDF:** suele ser una vista que no pudo compilarse; mirá los logs.
 - **Errores de conexión a la base o "prepared statement does not exist":** falta
-  `DB_EMULATE_PREPARES=true` con el pooler en modo transacción.
+  `DB_DISABLE_PREPARES=true` con el pooler en modo transacción.
+- **`operator does not exist: boolean = integer`:** quedó configurado `DB_EMULATE_PREPARES`. Borralo y
+  usá `DB_DISABLE_PREPARES=true`.
 - **Los mails no salen:** mirá "Errores Recientes" en el Dashboard del Developer.
 - **CORS:** el dominio del frontend tiene que estar en `CORS_ALLOWED_ORIGINS`, sin barra final.

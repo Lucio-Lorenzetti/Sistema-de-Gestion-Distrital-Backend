@@ -98,9 +98,12 @@ return [
             'search_path' => 'public',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
             // Supabase en modo "transaction pooler" (puerto 6543) no admite sentencias
-            // preparadas del lado del servidor: con DB_EMULATE_PREPARES=true PDO las emula.
-            // Necesario en hostings serverless (Vercel), donde cada pedido abre su conexión.
-            'options' => env('DB_EMULATE_PREPARES', false) ? [PDO::ATTR_EMULATE_PREPARES => true] : [],
+            // preparadas con nombre. Con DB_DISABLE_PREPARES=true PDO manda cada consulta con
+            // sus parámetros, sin preparar nada en el servidor. Necesario en hostings
+            // serverless (Vercel), donde cada pedido abre su conexión.
+            // NO usar PDO::ATTR_EMULATE_PREPARES: inserta los booleanos como el entero 1 y
+            // Postgres rechaza "boolean = integer" (where autosolicitable = 1).
+            'options' => env('DB_DISABLE_PREPARES', false) ? [PDO::PGSQL_ATTR_DISABLE_PREPARES => true] : [],
         ],
 
         'sqlsrv' => [
