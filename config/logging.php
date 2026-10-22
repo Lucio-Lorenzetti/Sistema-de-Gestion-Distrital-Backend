@@ -101,7 +101,14 @@ return [
             'handler_with' => [
                 'stream' => 'php://stderr',
             ],
-            'formatter' => env('LOG_STDERR_FORMATTER'),
+            // Una línea por error, sin el rastro completo de la pila: en los logs de los
+            // hostings (Vercel, Render, etc.) el mensaje real queda a la vista en vez de
+            // quedar enterrado debajo de 60 líneas de middleware. LOG_STACKTRACES=true
+            // vuelve a incluir el rastro cuando haga falta.
+            'formatter' => env('LOG_STDERR_FORMATTER', Monolog\Formatter\LineFormatter::class),
+            'formatter_with' => [
+                'includeStacktraces' => env('LOG_STACKTRACES', false),
+            ],
             'processors' => [PsrLogMessageProcessor::class],
         ],
 
