@@ -14,12 +14,19 @@ class ProgramNote extends Model
         'line_ref',
         'line_texto',
         'contenido',
-        'resuelta'
+        'resuelta',
+        'resuelta_por',
+        'resuelta_at',
     ];
 
     protected $casts = [
         'resuelta' => 'boolean',
+        'resuelta_at' => 'datetime',
     ];
+
+    public function resolutor() {
+        return $this->belongsTo(User::class, 'resuelta_por');
+    }
 
     public function program() {
         return $this->belongsTo(Program::class);

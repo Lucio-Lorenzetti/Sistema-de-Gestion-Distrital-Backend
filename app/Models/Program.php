@@ -26,6 +26,8 @@ class Program extends Model
         'estado',
         'motivo_rechazo',
         'aprobacion_solicitada_at',
+        'enviado_at',
+        'enviado_tras_comentarios',
         'lugar',
         'valor',
         'transporte',
@@ -37,6 +39,8 @@ class Program extends Model
         'fecha_inicio' => 'date:Y-m-d',
         'fecha_fin' => 'date:Y-m-d',
         'aprobacion_solicitada_at' => 'datetime',
+        'enviado_at' => 'datetime',
+        'enviado_tras_comentarios' => 'boolean',
     ];
 
     // Relaciones

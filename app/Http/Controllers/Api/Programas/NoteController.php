@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Program;
 use App\Models\ProgramNote;
 use App\Notifications\ComentarioNuevoNotification;
+use App\Services\NovedadesRevision;
 use App\Services\SafeNotifier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -107,9 +108,47 @@ class NoteController extends Controller
             'resuelta' => 'required|boolean',
         ]);
 
-        $note->update(['resuelta' => $validated['resuelta']]);
+        // Se guarda quién y cuándo resolvió, para el tablero de novedades de los auxiliares.
+        $note->update([
+            'resuelta'     => $validated['resuelta'],
+            'resuelta_por' => $validated['resuelta'] ? Auth::id() : null,
+            'resuelta_at'  => $validated['resuelta'] ? now() : null,
+        ]);
 
         return response()->json($note->load('user:id,name,totem'));
+    }
+
+    /**
+     * Novedades de revisión para el tablero de los auxiliares de programa: programas
+     * que entraron a revisión, que volvieron corregidos tras comentarios, y hilos que
+     * alguien respondió o resolvió. Aux Prog General ve todas las ramas; Aux Prog Rama,
+     * solo la suya. Los demás roles no tienen este tablero. Ventana de 14 días.
+     */
+    public function novedades()
+    {
+        $user = Auth::user();
+        $roleNames = $user->roles->pluck('nombre')
+            ->map(fn ($nombre) => strtolower($nombre))
+            ->toArray();
+
+        $esGeneral = in_array('aux prog general', $roleNames);
+        if (!$esGeneral && !in_array('aux prog rama', $roleNames)) {
+            return response()->json([]);
+        }
+
+        $programas = Program::where('estado', 'enviado')
+            ->when(!$esGeneral, fn ($q) => $q->where('rama_id', $user->roleScope('Aux Prog Rama')?->rama_id))
+            ->with(['owner:id,name,totem', 'rama:id,nombre', 'grupo:id,nombre'])
+            ->get();
+
+        $hilos = ProgramNote::whereNull('parent_id')
+            ->whereIn('program_id', $programas->pluck('id'))
+            ->with(['replies.user:id,name,totem', 'resolutor:id,name,totem'])
+            ->get();
+
+        return response()->json(
+            NovedadesRevision::armar($programas, $hilos, $user->id, now()->subDays(14))
+        );
     }
 
     /**

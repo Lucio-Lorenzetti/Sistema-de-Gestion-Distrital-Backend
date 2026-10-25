@@ -99,6 +99,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     //Programas
     Route::get('/comentarios-pendientes', [NoteController::class, 'pendientes']);
+    Route::get('/revision/novedades', [NoteController::class, 'novedades']);
     // Antes del apiResource: si no, GET /programas/{program} la intercepta y "papelera" 404 como id inválido.
     Route::get('programas/papelera', [ProgramController::class, 'papelera']);
     Route::apiResource('programas', ProgramController::class);

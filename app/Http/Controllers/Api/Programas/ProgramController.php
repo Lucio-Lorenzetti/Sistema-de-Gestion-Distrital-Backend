@@ -381,11 +381,21 @@ class ProgramController extends Controller
         // volvió a borrador (hay que reenviarlo), o ya se resolvió (aprobado/rechazado).
         // El motivo de un rechazo anterior tampoco sobrevive a un cambio de estado
         // posterior (reenviado, aprobado, etc.): dejaría de corresponder al estado actual.
-        $program->update([
+        $cambios = [
             'estado' => $validated['estado'],
             'motivo_rechazo' => $validated['estado'] === 'rechazado' ? $validated['motivo'] : null,
             'aprobacion_solicitada_at' => null,
-        ]);
+        ];
+
+        // Cada ingreso a revisión queda fechado, y se anota si ya había comentarios:
+        // es la diferencia entre "programa nuevo" y "corregido tras una vuelta de
+        // comentarios" en el tablero de los auxiliares.
+        if ($validated['estado'] === 'enviado') {
+            $cambios['enviado_at'] = now();
+            $cambios['enviado_tras_comentarios'] = $program->notes()->exists();
+        }
+
+        $program->update($cambios);
 
         match ($validated['estado']) {
             'enviado'   => ActivityLogger::log('programa_enviado', 'Se envió un programa a revisión', $program->titulo),
