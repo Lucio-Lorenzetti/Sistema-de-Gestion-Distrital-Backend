@@ -12,6 +12,7 @@ class ProgramNote extends Model
         'user_id',
         'parent_id',
         'line_ref',
+        'line_texto',
         'contenido',
         'resuelta'
     ];

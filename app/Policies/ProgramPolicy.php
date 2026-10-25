@@ -128,6 +128,23 @@ class ProgramPolicy
     }
 
     /**
+     * ¿Puede responder o resolver hilos existentes? (Crear hilos nuevos sigue siendo
+     * comment(): solo en revisión.)
+     * - 'enviado': los mismos que comentan.
+     * - 'borrador': el equipo del programa (autor y educadores de su grupo+rama), para
+     *   poder contestar "corregido" o resolver mientras ajustan el programa sin tener
+     *   que volver a enviarlo. Los hilos y sus anclajes ya existentes no se tocan.
+     */
+    public function responder(User $user, Program $program): bool
+    {
+        if ($program->estado === 'borrador') {
+            return $this->esColaborador($user, $program);
+        }
+
+        return $this->comment($user, $program);
+    }
+
+    /**
      * ¿Puede borrar este programa?
      */
     public function delete(User $user, Program $program): bool

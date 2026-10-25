@@ -32,12 +32,14 @@ class NoteController extends Controller
      */
     public function store(Request $request, Program $program)
     {
-        Gate::authorize('comment', $program);
+        // Un hilo nuevo solo en revisión; responder uno existente también en borrador.
+        Gate::authorize($request->filled('parent_id') ? 'responder' : 'comment', $program);
 
         $validated = $request->validate([
-            'contenido' => 'required|string',
-            'parent_id' => 'nullable|integer',
-            'line_ref'  => 'nullable|string|max:190',
+            'contenido'  => 'required|string',
+            'parent_id'  => 'nullable|integer',
+            'line_ref'   => 'nullable|string|max:190',
+            'line_texto' => 'nullable|string',
         ]);
 
         $parentId = $validated['parent_id'] ?? null;
@@ -65,6 +67,10 @@ class NoteController extends Controller
             'user_id'    => Auth::id(),
             'parent_id'  => $parentId,
             'line_ref'   => $parentId === null ? $validated['line_ref'] : null,
+            // Tope de 300 caracteres: mismo recorte que hace el front al compararlo con la línea actual.
+            'line_texto' => $parentId === null && !empty($validated['line_texto'])
+                ? mb_substr(trim($validated['line_texto']), 0, 300)
+                : null,
             'contenido'  => $validated['contenido'],
             'resuelta'   => false,
         ]);
@@ -85,7 +91,7 @@ class NoteController extends Controller
      */
     public function toggleResolucion(Request $request, Program $program, ProgramNote $note)
     {
-        Gate::authorize('comment', $program);
+        Gate::authorize('responder', $program);
 
         if ($note->program_id !== $program->id) {
             abort(404);
