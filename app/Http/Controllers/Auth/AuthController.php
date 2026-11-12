@@ -3,18 +3,23 @@
 namespace App\Http\Controllers\Auth;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use App\Models\Grupo;
 use App\Models\Rama;
 use App\Models\Role;
 use App\Models\User;
 use App\Http\Controllers\Controller;
 use App\Services\ActivityLogger;
+use App\Notifications\EmailCambiadoNotification;
+use App\Notifications\PasswordCambiadaNotification;
 use App\Services\RoleRequestService;
+use App\Services\SafeNotifier;
 use App\Services\UserScopeCache;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
@@ -192,17 +197,32 @@ class AuthController extends Controller
             'token' => 'required',
             'email' => 'required|email',
             'password' => 'required|min:8|confirmed',
+        ], [
+            'token.required' => 'El link para restablecer la contraseña no es válido. Pedí uno nuevo.',
+            'email.required' => 'El link para restablecer la contraseña no es válido. Pedí uno nuevo.',
+            'email.email' => 'El link para restablecer la contraseña no es válido. Pedí uno nuevo.',
+            'password.required' => 'Ingresá la nueva contraseña.',
+            'password.min' => 'La nueva contraseña tiene que tener al menos 8 caracteres.',
+            'password.confirmed' => 'La confirmación no coincide con la nueva contraseña.',
         ]);
 
         $status = Password::reset($validated, function (User $user, string $password) {
             $user->forceFill([
                 'password' => Hash::make($password),
             ])->save();
+
+            // Quien recupera la cuenta no sabe quién más pudo tenerla abierta:
+            // se cierran TODAS las sesiones y se avisa por mail.
+            $user->tokens()->delete();
+            SafeNotifier::enviar($user, new PasswordCambiadaNotification());
         });
 
         if ($status !== Password::PASSWORD_RESET) {
             throw ValidationException::withMessages([
-                'email' => [__($status)],
+                'email' => [match ($status) {
+                    Password::RESET_THROTTLED => 'Esperá un minuto antes de volver a intentarlo.',
+                    default => 'El link para restablecer la contraseña venció o ya fue usado. Pedí uno nuevo desde "Olvidé mi contraseña".',
+                }],
             ]);
         }
 
@@ -221,9 +241,50 @@ class AuthController extends Controller
             'name' => 'required|string|max:255',
             'totem' => 'nullable|string|max:100',
             'email' => 'required|email|unique:users,email,' . $user->id,
+            'current_password' => 'nullable|string',
+        ], [
+            'name.required' => 'Escribí tu nombre y apellido.',
+            'name.max' => 'El nombre es demasiado largo (máximo 255 caracteres).',
+            'totem.max' => 'El tótem es demasiado largo (máximo 100 caracteres).',
+            'email.required' => 'Escribí tu correo electrónico.',
+            'email.email' => 'Ingresá un correo electrónico válido.',
+            'email.unique' => 'Ese correo ya está en uso por otra cuenta.',
         ]);
 
-        $user->update($validated);
+        $emailAnterior = $user->email;
+        $cambiaEmail = $validated['email'] !== $emailAnterior;
+
+        // El correo es la llave de "Olvidé mi contraseña": quien lo cambia se
+        // queda con la cuenta. Por eso, para cambiarlo hay que confirmar con la
+        // contraseña actual — así una sesión abierta que alguien más aprovecha
+        // no alcanza para desviar la cuenta a otro mail.
+        if ($cambiaEmail) {
+            $actual = $validated['current_password'] ?? '';
+
+            if ($actual === '') {
+                throw ValidationException::withMessages([
+                    'current_password' => ['Para cambiar tu correo, ingresá tu contraseña actual.'],
+                ]);
+            }
+
+            if (! Hash::check($actual, $user->password)) {
+                throw ValidationException::withMessages([
+                    'current_password' => ['La contraseña actual no es correcta.'],
+                ]);
+            }
+        }
+
+        $user->update(Arr::except($validated, ['current_password']));
+
+        if ($cambiaEmail) {
+            $this->cerrarOtrasSesiones($request);
+
+            // Al correo ANTERIOR: el dueño legítimo se entera aunque no haya sido él.
+            SafeNotifier::enviar(
+                Notification::route('mail', $emailAnterior),
+                new EmailCambiadoNotification($user->email)
+            );
+        }
 
         return response()->json($user->load(['roles', 'grupo', 'rama']));
     }
@@ -235,6 +296,11 @@ class AuthController extends Controller
         $validated = $request->validate([
             'current_password' => 'required',
             'password' => 'required|min:8|confirmed',
+        ], [
+            'current_password.required' => 'Ingresá tu contraseña actual.',
+            'password.required' => 'Ingresá la nueva contraseña.',
+            'password.min' => 'La nueva contraseña tiene que tener al menos 8 caracteres.',
+            'password.confirmed' => 'La confirmación no coincide con la nueva contraseña.',
         ]);
 
         if (! Hash::check($validated['current_password'], $user->password)) {
@@ -247,7 +313,28 @@ class AuthController extends Controller
             'password' => Hash::make($validated['password']),
         ])->save();
 
+        $this->cerrarOtrasSesiones($request);
+        SafeNotifier::enviar($user, new PasswordCambiadaNotification());
+
         return response()->json(['message' => 'Contraseña actualizada correctamente']);
+    }
+
+    /**
+     * Cierra todas las sesiones del usuario MENOS la que hizo el pedido: al
+     * cambiar la contraseña o el correo, quien lo hizo sigue adentro y cualquier
+     * otro dispositivo (el de alguien que la tuviera abierta) queda afuera.
+     */
+    private function cerrarOtrasSesiones(Request $request): void
+    {
+        $usuario = $request->user();
+        $actual = $usuario->currentAccessToken();
+        $tokens = $usuario->tokens();
+
+        if ($actual && isset($actual->id)) {
+            $tokens->where('id', '!=', $actual->id);
+        }
+
+        $tokens->delete();
     }
 
     /**
