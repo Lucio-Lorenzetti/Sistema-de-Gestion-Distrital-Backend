@@ -9,6 +9,7 @@ use App\Notifications\ProgramaRevisadoNotification;
 use App\Services\ActivityLogger;
 use App\Services\DestinatarioRoles;
 use App\Services\SafeNotifier;
+use App\Services\UbicacionPrograma;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -84,9 +85,29 @@ class ProgramController extends Controller
             'lugar'             => 'nullable|string|max:255',   // Solo Campamento/CFA
             'valor'             => 'nullable|string|max:255',
             'transporte'        => 'nullable|string|max:255',
+            // Solo los usa el Developer (ver más abajo): para el resto se ignoran.
+            'rama_id'           => 'nullable|integer|exists:ramas,id',
+            'grupo_id'          => 'nullable|integer|exists:grupos,id',
+        ], [
+            'titulo.required'             => 'Escribí el título del programa.',
+            'titulo.max'                  => 'El título es demasiado largo (máximo 255 caracteres).',
+            'diagnostico.required'        => 'Completá el diagnóstico.',
+            'objetivos.required'          => 'Completá los objetivos.',
+            'educadoresACargo.required'   => 'Indicá los educadores a cargo.',
+            'tipo.in'                     => 'El tipo de programa no es válido.',
+            'fechaInicio.required'        => 'Elegí la fecha de inicio.',
+            'fechaInicio.date'            => 'La fecha de inicio no es válida.',
+            'fechaFin.required'           => 'Elegí la fecha de fin.',
+            'fechaFin.date'               => 'La fecha de fin no es válida.',
+            'fechaFin.after_or_equal'     => 'La fecha de fin no puede ser anterior a la de inicio.',
+            'rama_id.exists'              => 'La rama elegida no existe.',
+            'grupo_id.exists'             => 'El grupo elegido no existe.',
         ]);
 
         $user = Auth::user();
+
+        // Rama y grupo: del propio usuario, salvo el Developer, que los elige (ver el servicio).
+        $ubicacion = UbicacionPrograma::resolver($user, $validated);
 
         $program = Program::create([
             'titulo'              => $validated['titulo'],
@@ -94,7 +115,7 @@ class ProgramController extends Controller
             'objetivos'           => $validated['objetivos'] ?? null,
             'educadores_a_cargo'  => $validated['educadoresACargo'] ?? null,
             'tipo'                => $validated['tipo'] ?? 'cfa',
-            'rama_id'             => $user->rama_id, // sale del usuario, no del payload
+            'rama_id'             => $ubicacion['rama_id'],
             'fecha_inicio'        => $validated['fechaInicio'] ?? null,
             'fecha_fin'           => $validated['fechaFin'] ?? null,
             'cronograma'          => $validated['dias'] ?? (isset($validated['contenidoHtml']) ? ['contenidoHtml' => $validated['contenidoHtml']] : []),
@@ -103,7 +124,7 @@ class ProgramController extends Controller
             'valor'               => $validated['valor'] ?? null,
             'transporte'          => $validated['transporte'] ?? null,
             'owner_id'            => $user->id,
-            'grupo_id'            => $user->grupo_id,
+            'grupo_id'            => $ubicacion['grupo_id'],
             'estado'              => 'borrador',
         ]);
 
