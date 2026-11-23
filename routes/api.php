@@ -136,3 +136,9 @@ Route::middleware('auth:sanctum')->group(function () {
 // Antes era una Closure acá mismo; se movió a SystemController porque
 // `php artisan route:cache` no soporta rutas con Closure.
 Route::get('/db-heartbeat-sistema/{token}', [SystemController::class, 'heartbeat']);
+
+// -----------------------------
+// AVISO POR MAIL DE UNA VERSIÓN NUEVA (USO INTERNO, PROTEGIDA POR SECRETO)
+// -----------------------------
+// La llama el build del frontend en Vercel al terminar cada deploy de producción.
+Route::post('/sistema/nueva-version', [SystemController::class, 'nuevaVersion'])->middleware('throttle:10,1');

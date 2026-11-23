@@ -35,6 +35,13 @@ return [
         ],
     ],
 
+    // Aviso por mail de cada versión nueva: el build del frontend (Vercel) llama a
+    // POST /api/sistema/nueva-version con este mismo secreto. Sin secreto, el
+    // endpoint responde 401 y no se manda nada.
+    'aviso_version' => [
+        'secret' => env('AVISO_VERSION_SECRET'),
+    ],
+
     // Asistente IA del panel "Actualizaciones" (solo Developer) — sin key
     // configurada, AsistenteIaController avisa en vez de fallar feo.
     'gemini' => [
