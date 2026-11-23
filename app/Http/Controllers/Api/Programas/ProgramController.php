@@ -43,8 +43,16 @@ class ProgramController extends Controller
             ])
             ->with(['rama', 'grupo', 'owner:id,name,email,totem']);
 
-        if (in_array('director', $roleNames) || in_array('aux prog general', $roleNames)) {
+        // Roles que ya definen qué programas se ven en la cascada de abajo. Un Developer
+        // que no tiene ninguno no tiene rama ni grupo propios: sin esta salida caería en el
+        // default de Educador y el listado le saldría vacío. Si además tiene uno de estos
+        // roles, ve exactamente lo que ese rol le corresponde (como cualquier otro usuario).
+        $rolesConAlcance = ['director', 'aux prog general', 'aux prog rama', 'jefe de grupo', 'educador'];
+        $developerSinAlcance = $user->isDeveloper() && empty(array_intersect($roleNames, $rolesConAlcance));
+
+        if ($developerSinAlcance || in_array('director', $roleNames) || in_array('aux prog general', $roleNames)) {
             // Director y Aux Prog General ven TODOS los programas del distrito, sin filtro.
+            // El Developer sin ningún rol con alcance también.
         } elseif (in_array('aux prog rama', $roleNames)) {
             // Scope real de la asignación de Aux Prog Rama (no user->rama_id, que
             // es el caché de Educador y puede no coincidir si la persona tiene ambos).

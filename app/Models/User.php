@@ -121,6 +121,19 @@ class User extends Authenticatable implements CanResetPasswordContract, MustVeri
     }
 
     /**
+     * ¿Tiene este rol asignado de verdad? A diferencia de hasRole(), no le
+     * concede nada al Developer por ser Developer: sirve para saber si un
+     * Developer sumó un rol puntual (por ejemplo, Educador de una rama y grupo).
+     */
+    public function tieneRolAsignado(string $roleNombre): bool
+    {
+        $nombre = strtolower($roleNombre);
+
+        return $this->rolesCargados()
+            ->contains(fn ($rol) => strtolower($rol->nombre) === $nombre);
+    }
+
+    /**
      * El scope (rama/grupo) de UNA asignación de rol puntual — a diferencia de
      * $this->rama_id/$this->grupo_id, que son solo el caché de la asignación de
      * Educador (ver App\Services\UserScopeCache). Usar este método para Jefe de

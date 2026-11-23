@@ -10,11 +10,13 @@ use Illuminate\Validation\ValidationException;
  *
  * - Un usuario común (Educador): sale SIEMPRE de su propia asignación. Lo que
  *   venga en el payload se ignora: nadie puede crear programas en otra rama.
- * - Developer: no tiene rama propia, así que elige rama y grupo al crear. Si
- *   además es Educador de verdad y no manda nada, se usa su asignación.
+ * - Developer sin rol de Educador: no tiene rama propia, así que elige rama y
+ *   grupo al crear.
+ * - Developer que además es Educador de verdad: se comporta como cualquier otro
+ *   Educador. Rama y grupo salen de esa asignación y lo que mande se ignora.
  *
- * Si falta la rama (o, para el Developer, el grupo) se corta con un mensaje claro
- * en vez de dejar que la base rechace el insert (rama_id es NOT NULL).
+ * Si falta la rama (o, para el Developer que elige, el grupo) se corta con un
+ * mensaje claro en vez de dejar que la base rechace el insert (rama_id es NOT NULL).
  */
 class UbicacionPrograma
 {
@@ -26,20 +28,20 @@ class UbicacionPrograma
      */
     public static function resolver(User $user, array $validado): array
     {
-        $esDeveloper = $user->isDeveloper();
+        $eligeElDeveloper = $user->isDeveloper() && ! $user->tieneRolAsignado('Educador');
 
-        $ramaId  = $esDeveloper ? ($validado['rama_id'] ?? $user->rama_id) : $user->rama_id;
-        $grupoId = $esDeveloper ? ($validado['grupo_id'] ?? $user->grupo_id) : $user->grupo_id;
+        $ramaId  = $eligeElDeveloper ? ($validado['rama_id'] ?? $user->rama_id) : $user->rama_id;
+        $grupoId = $eligeElDeveloper ? ($validado['grupo_id'] ?? $user->grupo_id) : $user->grupo_id;
 
         if (! $ramaId) {
             throw ValidationException::withMessages([
-                'rama_id' => [$esDeveloper
+                'rama_id' => [$eligeElDeveloper
                     ? 'Elegí la rama a la que pertenece el programa.'
                     : 'No podés crear programas porque tu usuario no tiene una rama asignada. Pedile al Director que te asigne el rol de Educador con tu rama.'],
             ]);
         }
 
-        if ($esDeveloper && ! $grupoId) {
+        if ($eligeElDeveloper && ! $grupoId) {
             throw ValidationException::withMessages([
                 'grupo_id' => ['Elegí el grupo al que pertenece el programa.'],
             ]);

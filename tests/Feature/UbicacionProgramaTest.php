@@ -95,11 +95,20 @@ class UbicacionProgramaTest extends TestCase
         $this->assertSame(['rama_id' => 3, 'grupo_id' => 7], UbicacionPrograma::resolver($ambos, []));
     }
 
-    public function test_el_developer_que_ademas_es_educador_puede_elegir_otra_rama(): void
+    public function test_el_developer_que_ademas_es_educador_no_puede_elegir_otra_rama(): void
     {
         $ambos = $this->usuario(['Developer', 'Educador'], rama: 3, grupo: 7);
 
         $resultado = UbicacionPrograma::resolver($ambos, ['rama_id' => 5, 'grupo_id' => 9]);
+
+        $this->assertSame(['rama_id' => 3, 'grupo_id' => 7], $resultado);
+    }
+
+    public function test_el_developer_con_otro_rol_que_no_es_educador_sigue_eligiendo(): void
+    {
+        $conComunicacion = $this->usuario(['Developer', 'Aux Comunicación']);
+
+        $resultado = UbicacionPrograma::resolver($conComunicacion, ['rama_id' => 5, 'grupo_id' => 9]);
 
         $this->assertSame(['rama_id' => 5, 'grupo_id' => 9], $resultado);
     }

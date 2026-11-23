@@ -7,6 +7,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\ActivityLogger;
 use App\Services\RoleCombinationValidator;
+use App\Services\UserScopeCache;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -146,6 +147,10 @@ class UserController extends Controller
             $user->forceFill(['activo' => true])->save();
         }
 
+        // Recalcula users.rama_id/grupo_id (el caché del Educador que lee Programas).
+        // refresh() para que roleScope() vea el rol recién asignado y no la relación vieja.
+        UserScopeCache::sync($user->refresh());
+
         ActivityLogger::log('rol_asignado_developer', 'Developer asignó un rol directo', "{$user->name} → {$role->nombre}");
 
         return response()->json($user->load('roles'));
@@ -163,6 +168,9 @@ class UserController extends Controller
         abort_if($user->id === Auth::id(), 403, 'No podés sacarte un rol a vos mismo.');
 
         $user->roles()->detach($role->id);
+
+        // Si era su rol de Educador, rama y grupo del caché tienen que quedar en nulo.
+        UserScopeCache::sync($user->refresh());
 
         ActivityLogger::log('rol_quitado_developer', 'Developer quitó un rol directo', "{$user->name} → {$role->nombre}");
 
