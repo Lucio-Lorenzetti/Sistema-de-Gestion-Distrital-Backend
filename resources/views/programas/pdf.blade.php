@@ -29,11 +29,10 @@
 <body>
     <h1>{{ $program->titulo }}</h1>
     <div class="meta">
-        <table class="meta-row meta-row-3">
+        <table class="meta-row meta-row-2">
             <tr>
                 <td><strong>Grupo:</strong> {{ $program->grupo->nombre ?? '—' }}</td>
                 <td><strong>Rama:</strong> {{ $program->rama->nombre ?? '—' }}</td>
-                <td><strong>Autor:</strong> {{ $program->owner->name ?? '—' }}</td>
             </tr>
         </table>
         <table class="meta-row meta-row-2">
@@ -46,6 +45,15 @@
                 <td><strong>Tipo:</strong> {{ ucfirst($program->tipo) }}</td>
             </tr>
         </table>
+        @if($program->lugar || $program->valor || $program->transporte)
+            <table class="meta-row meta-row-3">
+                <tr>
+                    <td><strong>Lugar:</strong> {{ $program->lugar ?? '—' }}</td>
+                    <td><strong>Valor:</strong> {{ $program->valor ?? '—' }}</td>
+                    <td><strong>Transporte:</strong> {{ $program->transporte ?? '—' }}</td>
+                </tr>
+            </table>
+        @endif
     </div>
 
     @if($program->educadores_a_cargo)
@@ -61,17 +69,6 @@
     @if($program->objetivos)
         <h2>Objetivo</h2>
         <div class="bloque">{{ $program->objetivos }}</div>
-    @endif
-
-    @if($program->lugar || $program->valor || $program->transporte)
-        <h2>Información Adicional</h2>
-        <table class="meta-row meta-row-3">
-            <tr>
-                <td><strong>Lugar:</strong> {{ $program->lugar ?? '—' }}</td>
-                <td><strong>Valor:</strong> {{ $program->valor ?? '—' }}</td>
-                <td><strong>Transporte:</strong> {{ $program->transporte ?? '—' }}</td>
-            </tr>
-        </table>
     @endif
 
     <h2>Cronograma</h2>
